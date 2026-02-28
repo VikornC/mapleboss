@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-surface: #18181b;
+  --color-elevated: #27272a;
+  --color-border: #27272a;
+  --color-border-hover: #3f3f46;
+  --color-muted: #71717a;
+  --color-secondary: #a1a1aa;
+  --color-accent: #f59e0b;
+  --color-accent-hover: #fbbf24;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Dropdown animation */
+@keyframes dropdown {
+  from {
+    opacity: 0;
+    transform: scaleY(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1) translateY(0);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Custom uptime slider */
+.uptime-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  outline: none;
+}
+
+.uptime-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  border: 2px solid #09090b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  transition: box-shadow 0.15s ease;
+}
+
+.uptime-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.3);
+}
+
+.uptime-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.uptime-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  border: 2px solid #09090b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  transition: box-shadow 0.15s ease;
+}
+
+.uptime-slider::-moz-range-thumb:hover {
+  box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.3);
 }
