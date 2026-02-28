@@ -14,8 +14,9 @@ export default function NavBar() {
   return (
     <nav className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-background)]/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 md:px-8">
-        <Link href="/" className="text-lg font-bold text-[var(--color-accent)]">
-          MSN Battle Calc
+        <Link href="/" className="flex items-baseline gap-0.5 text-lg font-bold">
+          <span className="text-[var(--color-accent)]">mapleboss</span>
+          <span className="text-xs font-normal text-[var(--color-muted)]">.com</span>
         </Link>
         <div className="flex gap-1">
           {NAV_LINKS.map((link) => {
