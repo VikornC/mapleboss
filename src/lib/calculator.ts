@@ -24,6 +24,7 @@ export interface BurstCheckInput {
   burstTimeSeconds: number; // time window
   playerBurstDamage: number; // damage the player deals in the burst window
   partySize: number;
+  memberBurstDamages?: number[]; // burst damage for other party members (if provided, overrides equal-split assumption)
 }
 
 export interface BurstCheckResult {
@@ -102,10 +103,13 @@ export function calculateBattle(input: BattleInput): BattleResult {
 }
 
 export function calculateBurstCheck(input: BurstCheckInput): BurstCheckResult {
-  const { burstHP, playerBurstDamage, partySize } = input;
+  const { burstHP, playerBurstDamage, partySize, memberBurstDamages } = input;
 
-  // Player enters their actual damage in the burst window directly
-  const partyBurstDamage = playerBurstDamage * partySize;
+  const partyBurstDamage =
+    memberBurstDamages && memberBurstDamages.length > 0
+      ? playerBurstDamage + memberBurstDamages.reduce((sum, d) => sum + d, 0)
+      : playerBurstDamage * partySize;
+
   const requiredPerMember = burstHP / partySize;
   const canBurst = partyBurstDamage >= burstHP;
   const surplus = playerBurstDamage - requiredPerMember;

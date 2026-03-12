@@ -5,11 +5,11 @@ interface Props {
   onChange: (uptime: number) => void;
 }
 
-const STEPS = [50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+const STEPS = [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
 
 export default function UptimeSlider({ value, onChange }: Props) {
-  // Map value (50-100) to percentage (0-100) for the filled track
-  const fillPercent = ((value - 50) / 50) * 100;
+  // Map value (40-100) to percentage (0-100) for the filled track
+  const fillPercent = ((value - 40) / 60) * 100;
 
   return (
     <div className="space-y-2">
@@ -26,7 +26,7 @@ export default function UptimeSlider({ value, onChange }: Props) {
       <div className="relative pt-1 pb-1">
         <input
           type="range"
-          min={50}
+          min={40}
           max={100}
           step={5}
           value={value}
@@ -48,7 +48,7 @@ export default function UptimeSlider({ value, onChange }: Props) {
                     : "bg-[var(--color-border)]"
                 }`}
               />
-              {step % 25 === 0 || step === 50 ? (
+              {step % 20 === 0 ? (
                 <span className="mt-0.5 text-[9px] text-[var(--color-muted)]">
                   {step}
                 </span>
