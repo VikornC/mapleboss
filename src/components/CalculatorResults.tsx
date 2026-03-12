@@ -30,7 +30,7 @@ export default function CalculatorResults({
         : "bg-red-500";
 
   // Calculate "need Nx more" multiplier for cannot-clear scenario
-  const playerDPM = result.requiredDPMPerMember - result.dpmGap;
+  const playerDPM = result.effectivePlayerDPM;
   const needMultiplier =
     playerDPM > 0 ? result.requiredDPMPerMember / playerDPM : Infinity;
 

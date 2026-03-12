@@ -11,6 +11,7 @@ export interface BattleResult {
   canClear: boolean;
   estimatedClearTime: number; // seconds
   requiredDPMPerMember: number;
+  effectivePlayerDPM: number; // playerDPM * uptime fraction
   dpmGap: number;
   overkillPercent: number;
   totalPartyDPM: number;
@@ -93,6 +94,7 @@ export function calculateBattle(input: BattleInput): BattleResult {
     canClear,
     estimatedClearTime,
     requiredDPMPerMember,
+    effectivePlayerDPM: effectiveDPM,
     dpmGap,
     overkillPercent,
     totalPartyDPM,
