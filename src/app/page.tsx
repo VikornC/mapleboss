@@ -9,6 +9,14 @@ const TOOLS = [
     status: "active" as const,
     badge: null,
   },
+  {
+    icon: "🍜",
+    name: "Hungry Muto",
+    description: "All 13 Hungry Muto recipes at a glance. Quick reference for ingredients and crafting.",
+    href: "/tools/muto",
+    status: "active" as const,
+    badge: null,
+  },
 ];
 
 export default function Home() {
