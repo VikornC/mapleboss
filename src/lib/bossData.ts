@@ -41,7 +41,7 @@ export const BOSS_DATA: BossEntry[] = [
 
   // Lucid
   {
-    id: "lucid-easy", name: "Lucid", difficulty: "Easy", level: 210, hp: 12e12, timeLimitSeconds: 1800, defaultUptime: 75, defense: 300, image: "/images/bosses/lucid.png",
+    id: "lucid-easy", name: "Lucid", difficulty: "Easy", level: 230, hp: 12e12, timeLimitSeconds: 1800, defaultUptime: 75, defense: 300, image: "/images/bosses/lucid.png",
     arcaneForce: 360,
     afTiers: [{ af: 360, fdMultiplier: 1.0 }, { af: 400, fdMultiplier: 1.1 }, { af: 470, fdMultiplier: 1.3 }, { af: 540, fdMultiplier: 1.5 }],
   },
