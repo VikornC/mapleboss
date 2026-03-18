@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const NAV_LINKS = [
   { href: "/tools/battle-calc", label: "Calculator" },
+  { href: "/tools/enhance", label: "Enhancement Dashboard" },
 ];
 
 export default function NavBar() {
@@ -16,20 +17,11 @@ export default function NavBar() {
 
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            className="text-[var(--color-accent)]"
-          >
-            <path
-              d="M12 2C12 2 9.5 5.5 8 7C6.5 8.5 4 9 2 9C2 9 3 12 5 13.5C5 13.5 3 15 2 17C4 17 6.5 16.5 8 15.5C8 15.5 9 18 10 20L12 22L14 20C15 18 16 15.5 16 15.5C17.5 16.5 20 17 22 17C21 15 19 13.5 19 13.5C21 12 22 9 22 9C20 9 17.5 8.5 16 7C14.5 5.5 12 2 12 2Z"
-              fill="currentColor"
-            />
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-[var(--color-accent)]">
+            <path d="M12 2C12 2 9.5 5.5 8 7C6.5 8.5 4 9 2 9C2 9 3 12 5 13.5C5 13.5 3 15 2 17C4 17 6.5 16.5 8 15.5C8 15.5 9 18 10 20L12 22L14 20C15 18 16 15.5 16 15.5C17.5 16.5 20 17 22 17C21 15 19 13.5 19 13.5C21 12 22 9 22 9C20 9 17.5 8.5 16 7C14.5 5.5 12 2 12 2Z" fill="currentColor" />
           </svg>
           <span className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">
-            mapleboss
+            MapleBoss
           </span>
         </Link>
 

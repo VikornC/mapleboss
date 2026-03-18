@@ -10,6 +10,14 @@ const TOOLS = [
     badge: null,
   },
   {
+    icon: "⭐",
+    name: "Enhancement Dashboard",
+    description: "Live enhancement prices for Arcane, Dawn, AbsoLab, CRA, and Pitched Boss gear — all in one place.",
+    href: "/tools/enhance",
+    status: "active" as const,
+    badge: null,
+  },
+  {
     icon: "🍜",
     name: "Hungry Muto",
     description: "All 13 Hungry Muto recipes at a glance. Quick reference for ingredients and crafting.",
