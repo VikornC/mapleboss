@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const NAV_LINKS = [
   { href: "/tools/battle-calc", label: "Calculator" },
-  { href: "/tools/enhance", label: "Enhancement Dashboard" },
+  { href: "/tools/exp", label: "Level Calc" },
 ];
 
 export default function NavBar() {

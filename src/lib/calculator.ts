@@ -67,12 +67,13 @@ export function calculateBattle(input: BattleInput): BattleResult {
   const canClear = estimatedClearTime <= timeLimitSeconds;
 
   const timeLimitMinutes = timeLimitSeconds / 60;
+  // Required effective DPM (same basis as effectivePlayerDPM) — uptime not included here
   const requiredDPMPerMember =
-    partySize > 0 && uptimeFraction > 0 && timeLimitMinutes > 0
-      ? bossHP / (partySize * uptimeFraction * timeLimitMinutes)
+    partySize > 0 && timeLimitMinutes > 0
+      ? bossHP / (partySize * timeLimitMinutes)
       : Infinity;
 
-  const dpmGap = Math.max(0, requiredDPMPerMember - playerDPM);
+  const dpmGap = Math.max(0, requiredDPMPerMember - effectiveDPM);
 
   const overkillPercent = canClear
     ? ((timeLimitSeconds - estimatedClearTime) / timeLimitSeconds) * 100
