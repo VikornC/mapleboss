@@ -6,7 +6,8 @@ name: EXP Leaderboard Sweep
 
 on:
   schedule:
-    - cron: "40 0 * * *" # 00:40 UTC daily
+    - cron: "40 0 * * *"  # 00:40 UTC — primary daily run (after the ranking reset)
+    - cron: "40 12 * * *" # 12:40 UTC — fallback; dedup makes it a no-op unless the AM run failed (e.g. MSU down)
   workflow_dispatch:
 
 # Avoid overlapping runs.
