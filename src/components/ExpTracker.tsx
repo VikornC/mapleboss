@@ -209,7 +209,7 @@ export default function ExpTracker() {
                 onClick={() => selectChip(c.name)}
                 className={`${chipBase} text-xs ${job === c.name ? "bg-[var(--color-accent)] text-black" : "bg-[var(--color-elevated)] text-[var(--color-secondary)] hover:text-[var(--color-foreground)]"}`}
               >
-                {c.name} <span className="opacity-60">{c.count}</span>
+                {c.name}
               </button>
             ))}
           </div>
