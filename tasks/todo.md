@@ -48,6 +48,7 @@
 - [x] "Data updated {…} UTC · refreshes daily" indicator (from max snapshot time, `timeZone: "UTC"`).
 - [x] Removed sort toggle (rank-only) and search autocomplete preview per user feedback.
 - [x] `npm run build` clean; page returns 200.
+- [x] Mapped the High Flora classes: MSU's `ClassCode_LEF_WARRIOR` / `LEF_PIRATE` (rendered "Lef Warrior"/"Lef Pirate") were falling into "Other". Aliased `lefwarrior`→**Adele** (Warrior), `lefpirate`→**Ark** (Pirate) in `classes.ts`. "Other" bucket now empty (Adele 11, Ark 2).
 
 ## Home redesign + character-page polish (shipped)
 - [x] Home (`src/app/page.tsx`) now leads with the EXP Tracker: **live top-5 leaderboard preview** (server component, `revalidate = 3600` ISR, try/catch fallback) + slim value-prop strip + compact icon-left "More tools" row. Narrowed to `max-w-3xl`.
