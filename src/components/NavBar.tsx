@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const NAV_LINKS = [
   { href: "/tools/battle-calc", label: "Calculator" },
-  { href: "/tools/exp", label: "Level Calc" },
+  { href: "/tools/exp-tracker", label: "EXP Tracker" },
 ];
 
 export default function NavBar() {
@@ -13,7 +13,7 @@ export default function NavBar() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-background)]">
-      <div className="mx-auto flex h-16 max-w-5xl items-center gap-8 px-4 md:px-8">
+      <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-8 px-4 md:px-8">
 
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5">

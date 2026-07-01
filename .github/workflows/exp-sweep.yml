@@ -1,0 +1,41 @@
+name: EXP Leaderboard Sweep
+
+# Once-daily crawler that snapshots the MSU ranking leaderboard into the DB.
+# Runs ~40 min after the 00:00 UTC ranking reset. Also runnable on demand.
+# Inert until DATABASE_URL is configured in repo secrets.
+
+on:
+  schedule:
+    - cron: "40 0 * * *" # 00:40 UTC daily
+  workflow_dispatch:
+
+# Avoid overlapping runs.
+concurrency:
+  group: exp-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.SWEEP_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Run sweep
+        run: npm run sweep
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RANKING_TOP_N: ${{ vars.RANKING_TOP_N || '6844' }}
+          MIN_LEVEL: ${{ vars.MIN_LEVEL || '225' }}
+          SWEEP_DELAY_MS: ${{ vars.SWEEP_DELAY_MS || '5000' }}
+          RETENTION_DAYS: ${{ vars.RETENTION_DAYS || '120' }}

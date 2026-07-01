@@ -29,7 +29,7 @@ const TOOLS = [
 
 export default function Home() {
   return (
-    <div>
+    <div className="mx-auto max-w-5xl">
       {/* Hero */}
       <div className="relative mb-12 text-center">
         <div className="hero-glow" />

@@ -1,17 +1,20 @@
 # MSN Battle Calc — CLAUDE.md
 
 ## Project Overview
-MapleStory N battle analysis web app. Boss HP database + damage calculator for solo and party play.
+MapleStory N tools suite, targeting public release at **mapleboss.com**. Started as a boss HP database + damage calculator, expanding into a full player tools suite.
 
 - **Stack**: Next.js (App Router) + Prisma + SQLite (dev) / PostgreSQL (prod)
 - **Style**: Tailwind CSS
-- **Deploy target**: Vercel (personal first, maybe public later)
+- **Deploy target**: Vercel → mapleboss.com (public release)
 - **Auth**: None for now — design components to support auth later without major refactors
 
 ## Key Features
 1. **Boss Database** — HP values, phases, mechanics notes for MSN bosses
 2. **Battle Calculator** — Input your damage output, party size (1-6), see estimated damage needed per member to clear
-3. **Data Management** — Seed boss data from community sources + manual add/edit UI
+3. **Level / EXP Calculator** — Level progression and EXP tracking tools
+4. **Hungry Muto** — In-game crafting recipe reference
+5. **Data Management** — Seed boss data from community sources + manual add/edit UI
+6. **Crypto / DeFi Tools** — Planned: `/tools/crypto/*` routes for MSN blockchain economy (dormant until API keys)
 
 ## Architecture Decisions
 - Use Next.js App Router with server components by default, client components only when needed

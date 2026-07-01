@@ -1,6 +1,7 @@
 // EXP_TABLE[level] = EXP required to go from `level` to `level + 1`
 // Source: maplestorywiki.net/w/MapleStory_N/Experience
-// Covers levels 1–249 (250 is max level)
+// Covers levels 1–274 (275 is max level). Levels 250–274 from the
+// MSN ranking tracker's scraped table; "wall" jumps (~2x) at 250/260/270.
 export const EXP_TABLE: Record<number, number> = {
   1: 15, 2: 34, 3: 57, 4: 92, 5: 135, 6: 372, 7: 560, 8: 840, 9: 1242,
   10: 1304, 11: 1317, 12: 1330, 13: 1343, 14: 1356, 15: 1627, 16: 1952,
@@ -47,9 +48,36 @@ export const EXP_TABLE: Record<number, number> = {
   235: 829348137691, 236: 845935100443, 237: 862853802451, 238: 880110878499, 239: 897713096067,
   240: 1813380454053, 241: 1831514258591, 242: 1849829401175, 243: 1868327695184, 244: 1887010972134,
   245: 1905881081854, 246: 1924939892669, 247: 1944189291594, 248: 1963631184509, 249: 1983267496351,
+  250: 4006200342629, 251: 4046262346055, 252: 4086724969515, 253: 4127592219210, 254: 4168868141402,
+  255: 4210556822816, 256: 4252662391044, 257: 4295189014954, 258: 4338140905103, 259: 4381522314154,
+  260: 8850675074591, 261: 8939181825336, 262: 9028573643589, 263: 9118859380024, 264: 9210047973824,
+  265: 9302148453562, 266: 9395169938097, 267: 9489121637477, 268: 9584012853851, 269: 9679852982389,
+  270: 19553303024425, 271: 19748836054669, 272: 19946324415215, 273: 20145787659367, 274: 20347245535960,
 };
 
-export const MAX_LEVEL = 250;
+export const MAX_LEVEL = 275;
+
+// Prefix sums of EXP_TABLE: PREFIX[L] = total EXP to go from level 1 to level L.
+// PREFIX[1] = 0. Cached once at module load.
+const PREFIX: number[] = (() => {
+  const p: number[] = [0, 0]; // index 0 unused, level 1 = 0
+  let acc = 0;
+  for (let l = 1; l <= MAX_LEVEL; l++) {
+    acc += EXP_TABLE[l] ?? 0;
+    p[l + 1] = acc;
+  }
+  return p;
+})();
+
+/**
+ * Total cumulative EXP earned since level 1, given a level and the within-level
+ * EXP. Exact and level-up-safe — gains are differences of this, so the level-1
+ * base cancels. Max value (~253T at L275) is well under Number.MAX_SAFE_INTEGER.
+ */
+export function cumulativeExp(level: number, withinLevelExp: number): number {
+  const base = PREFIX[level] ?? PREFIX[MAX_LEVEL] ?? 0;
+  return base + withinLevelExp;
+}
 
 export function calcExpNeeded(currentLevel: number, currentPct: number, targetLevel: number): number {
   if (targetLevel <= currentLevel) return 0;

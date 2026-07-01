@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model ExpCharacter {
+  id        Int           @id @default(autoincrement())
+  assetKey  String        @unique
+  name      String
+  className String?
+  job       String?
+  server    String?
+  worldId   String?
+  guild     String?
+  imageUrl  String?
+  levelRank Int?
+  rank      Int?
+  level     Int?
+  exp       BigInt?
+  expPct    Float?
+  dailyGain    BigInt?
+  weeklyGain   BigInt?
+  monthlyGain  BigInt?
+  addedAt   DateTime      @default(now())
+  snapshots ExpSnapshot[]
+}
+
+model ExpSnapshot {
+  id          Int          @id @default(autoincrement())
+  characterId Int
+  level       Int
+  exp         BigInt
+  expPct      Float
+  rank        Int?
+  gain        BigInt?
+  snappedAt   DateTime     @default(now())
+  character   ExpCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([characterId, snappedAt])
+  @@index([snappedAt])
+}

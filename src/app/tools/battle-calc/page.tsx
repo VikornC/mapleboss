@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function BattleCalcPage() {
   return (
-    <div>
+    <div className="mx-auto max-w-5xl">
       <div className="relative mb-8 text-center">
         <div className="hero-glow" />
         <div className="mb-2 inline-block rounded-full bg-[var(--color-accent)]/10 px-3 py-1 text-[11px] font-medium tracking-wide text-[var(--color-accent)] uppercase">
