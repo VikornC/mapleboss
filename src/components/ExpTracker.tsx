@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatNumber } from "@/lib/format";
@@ -22,8 +22,12 @@ interface LeaderRow {
   monthlyGain: number | null;
 }
 interface LeaderboardResponse { total: number; page: number; pageSize: number; updatedAt: string | null; characters: LeaderRow[] }
+interface ClassInfo { name: string; archetype: string; count: number }
+interface Suggestion { assetKey: string; name: string; class: string | null; imageUrl: string | null; level: number | null; rank: number | null }
 
+const ARCHETYPE_ORDER = ["Warrior", "Mage", "Archer", "Thief", "Pirate", "Other"];
 const gainStr = (n: number | null) => (n == null ? "—" : "+" + formatNumber(n));
+const charHref = (name: string) => `/tools/exp-tracker/${encodeURIComponent(name)}`;
 
 async function api<T>(path: string): Promise<T | null> {
   try {
@@ -36,7 +40,7 @@ async function api<T>(path: string): Promise<T | null> {
 }
 
 const cardCls = "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-7";
-const charHref = (name: string) => `/tools/exp-tracker/${encodeURIComponent(name)}`;
+const chipBase = "rounded-full px-3 py-1 text-sm font-medium transition-colors";
 
 export default function ExpTracker() {
   const router = useRouter();
@@ -44,23 +48,60 @@ export default function ExpTracker() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"rank" | "dailyGain">("rank");
   const [job, setJob] = useState("all");
-  const [classes, setClasses] = useState<{ job: string; count: number }[]>([]);
+  const [archetype, setArchetype] = useState<string | null>(null);
+  const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [page, setPage] = useState(1);
 
+  // Autocomplete
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    api<{ job: string; count: number }[]>("/api/exp/classes").then((c) => c && setClasses(c));
+    api<ClassInfo[]>("/api/exp/classes").then((c) => c && setClasses(c));
   }, []);
 
+  // Leaderboard (debounced on search)
   useEffect(() => {
     const run = () =>
       api<LeaderboardResponse>(
         `/api/exp/leaderboard?search=${encodeURIComponent(search)}&sort=${sort}&job=${encodeURIComponent(job)}&page=${page}&pageSize=${PAGE_SIZE}`
       ).then(setLb);
-    const t = setTimeout(run, search ? 300 : 0);
+    const t = setTimeout(run, search ? 250 : 0);
     return () => clearTimeout(t);
   }, [search, sort, job, page]);
 
+  // Autocomplete suggestions (debounced)
+  useEffect(() => {
+    if (!search.trim()) { setSuggestions([]); return; }
+    const t = setTimeout(() => {
+      api<Suggestion[]>(`/api/exp/search?name=${encodeURIComponent(search)}`).then((s) => setSuggestions(s ?? []));
+    }, 200);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowSuggest(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const archetypes = ARCHETYPE_ORDER.filter((a) => classes.some((c) => c.archetype === a));
+  const chips = archetype ? classes.filter((c) => c.archetype === archetype) : [];
   const totalPages = lb ? Math.max(1, Math.ceil(lb.total / PAGE_SIZE)) : 1;
+
+  function selectArchetype(a: string | null) {
+    setArchetype(a);
+    setJob("all");
+    setPage(1);
+  }
+  function selectChip(name: string) {
+    setJob((cur) => (cur === name ? "all" : name));
+    setPage(1);
+  }
 
   return (
     <div>
@@ -77,39 +118,55 @@ export default function ExpTracker() {
         {lb?.updatedAt && (
           <p className="mt-1 text-xs text-[var(--color-muted)]">
             Data updated{" "}
-            {new Date(lb.updatedAt).toLocaleString([], {
-              month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-            })}
+            {new Date(lb.updatedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
             {" "}· refreshes daily
           </p>
         )}
       </div>
 
-      <div className="mb-8 flex items-center gap-4">
+      <div className="mb-6 flex items-center gap-4">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--color-border)] to-transparent" />
       </div>
 
-      {/* Toolbar: search + sort */}
+      {/* Toolbar: search (autocomplete) + sort */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-72 max-w-full" ref={searchRef}>
           <input
             type="text"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); setShowSuggest(true); }}
+            onFocus={() => setShowSuggest(true)}
             placeholder="Search character…"
-            className="w-56 max-w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] px-3.5 py-2 text-sm text-[var(--color-foreground)] placeholder-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
+            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] px-3.5 py-2 text-sm text-[var(--color-foreground)] placeholder-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
           />
-          <select
-            value={job}
-            onChange={(e) => { setJob(e.target.value); setPage(1); }}
-            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-foreground)] focus:border-[var(--color-accent)] focus:outline-none"
-          >
-            <option value="all">All classes</option>
-            {classes.map((c) => (
-              <option key={c.job} value={c.job}>{c.job} ({c.count})</option>
-            ))}
-          </select>
+          {showSuggest && search.trim() && suggestions.length > 0 && (
+            <div className="absolute top-full z-50 mt-1 w-full overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl">
+              {suggestions.slice(0, 8).map((s) => (
+                <button
+                  key={s.assetKey}
+                  onClick={() => { setShowSuggest(false); router.push(charHref(s.name)); }}
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[var(--color-elevated)]"
+                >
+                  {s.imageUrl ? (
+                    <div className="h-9 w-9 flex-shrink-0 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={s.imageUrl} alt={s.name} className="h-full w-full scale-[1.6] object-contain" />
+                    </div>
+                  ) : (
+                    <div className="h-9 w-9 flex-shrink-0 rounded bg-[var(--color-elevated)]" />
+                  )}
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-[var(--color-foreground)]">{s.name}</div>
+                    <div className="truncate text-xs text-[var(--color-muted)]">
+                      {s.class ?? ""}{s.level ? ` · Lv.${s.level}` : ""}{s.rank ? ` · #${s.rank}` : ""}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
         <div className="flex gap-1 rounded-lg bg-[var(--color-surface)] p-1">
           {([["rank", "Rank"], ["dailyGain", "Top Gain"]] as const).map(([val, label]) => (
             <button
@@ -123,6 +180,40 @@ export default function ExpTracker() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Class filter: archetype tabs + class chips */}
+      <div className="mb-4 flex flex-col gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => selectArchetype(null)}
+            className={`${chipBase} ${archetype === null ? "bg-[var(--color-accent)] text-black" : "border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-secondary)]"}`}
+          >
+            All classes
+          </button>
+          {archetypes.map((a) => (
+            <button
+              key={a}
+              onClick={() => selectArchetype(a)}
+              className={`${chipBase} ${archetype === a ? "bg-[var(--color-accent)] text-black" : "border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-secondary)]"}`}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+        {chips.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {chips.map((c) => (
+              <button
+                key={c.name}
+                onClick={() => selectChip(c.name)}
+                className={`${chipBase} text-xs ${job === c.name ? "bg-[var(--color-accent)] text-black" : "bg-[var(--color-elevated)] text-[var(--color-secondary)] hover:text-[var(--color-foreground)]"}`}
+              >
+                {c.name} <span className="opacity-60">{c.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>
@@ -160,7 +251,6 @@ export default function ExpTracker() {
                           <div className="h-16 w-16 flex-shrink-0 rounded bg-[var(--color-elevated)]" />
                         )}
                         <div className="min-w-0">
-                          {/* Real anchor so search engines can crawl to each character page */}
                           <Link
                             href={charHref(c.name)}
                             onClick={(e) => e.stopPropagation()}
