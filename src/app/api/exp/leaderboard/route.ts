@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       ? [{ dailyGain: "desc" as const }, { rank: "asc" as const }]
       : [{ rank: "asc" as const }];
 
-  const [total, rows] = await Promise.all([
+  const [total, rows, latest] = await Promise.all([
     prisma.expCharacter.count({ where }),
     prisma.expCharacter.findMany({
       where,
@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
         monthlyGain: true,
       },
     }),
+    prisma.expSnapshot.aggregate({ _max: { snappedAt: true } }),
   ]);
 
   // gainRank: dense rank by dailyGain across the whole tracked set (cheap: one
@@ -59,6 +60,7 @@ export async function GET(req: NextRequest) {
     total,
     page,
     pageSize,
+    updatedAt: latest._max.snappedAt,
     characters: rows.map((c) => ({
       assetKey: c.assetKey,
       name: c.name,

@@ -20,7 +20,7 @@ interface LeaderRow {
   weeklyGain: number | null;
   monthlyGain: number | null;
 }
-interface LeaderboardResponse { total: number; page: number; pageSize: number; characters: LeaderRow[] }
+interface LeaderboardResponse { total: number; page: number; pageSize: number; updatedAt: string | null; characters: LeaderRow[] }
 
 const gainStr = (n: number | null) => (n == null ? "—" : "+" + formatNumber(n));
 
@@ -65,8 +65,17 @@ export default function ExpTracker() {
         </div>
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">EXP Leaderboard</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-[var(--color-muted)]">
-          {lb ? `${lb.total.toLocaleString()} tracked characters, refreshed daily.` : "MapleStory N ranking tracker."}
+          {lb ? `${lb.total.toLocaleString()} tracked characters` : "MapleStory N ranking tracker."}
         </p>
+        {lb?.updatedAt && (
+          <p className="mt-1 text-xs text-[var(--color-muted)]">
+            Data updated{" "}
+            {new Date(lb.updatedAt).toLocaleString([], {
+              month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+            })}
+            {" "}· refreshes daily
+          </p>
+        )}
       </div>
 
       <div className="mb-8 flex items-center gap-4">
