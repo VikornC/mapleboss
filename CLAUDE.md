@@ -3,18 +3,22 @@
 ## Project Overview
 MapleStory N tools suite, targeting public release at **mapleboss.com**. Started as a boss HP database + damage calculator, expanding into a full player tools suite.
 
-- **Stack**: Next.js (App Router) + Prisma + SQLite (dev) / PostgreSQL (prod)
+- **Stack**: Next.js (App Router) + Prisma v7 + PostgreSQL (Neon, both dev & prod via `@prisma/adapter-pg`)
 - **Style**: Tailwind CSS
-- **Deploy target**: Vercel → mapleboss.com (public release)
+- **Deploy**: LIVE on Vercel → mapleboss.com; Neon Postgres; daily GitHub Actions ranking crawler
 - **Auth**: None for now — design components to support auth later without major refactors
 
+> **DB note:** Migrated off SQLite. Use pooled `DATABASE_URL` for request-scoped queries, direct `DATABASE_URL_UNPOOLED` for migrations & bulk writes. After any schema/provider change, run `npx prisma generate` **and restart the dev server** (the running client is cached in memory).
+
 ## Key Features
-1. **Boss Database** — HP values, phases, mechanics notes for MSN bosses
-2. **Battle Calculator** — Input your damage output, party size (1-6), see estimated damage needed per member to clear
-3. **Level / EXP Calculator** — Level progression and EXP tracking tools
+1. **EXP Tracker (LIVE — primary tool, home page leads with it)** — Daily ranking leaderboard (6,844+ chars) crawled from MSU's internal ranking endpoint; case-insensitive search, archetype/class filters, daily/weekly/monthly gains, level forecasts, and indexable per-character pages at `/tools/exp-tracker/[name]` (SEO play). Data source & internals: see memory `project_exp_tracker_live.md`.
+2. **Boss Database** — HP values, phases, mechanics notes for MSN bosses
+3. **Battle Calculator** — Input your damage output, party size (1-6), see estimated damage needed per member to clear
 4. **Hungry Muto** — In-game crafting recipe reference
 5. **Data Management** — Seed boss data from community sources + manual add/edit UI
 6. **Crypto / DeFi Tools** — Planned: `/tools/crypto/*` routes for MSN blockchain economy (dormant until API keys)
+
+> **Removed:** the standalone Level/EXP Calculator (`/tools/exp`) — its forecasting lives inside the EXP Tracker's per-character pages now.
 
 ## Architecture Decisions
 - Use Next.js App Router with server components by default, client components only when needed
