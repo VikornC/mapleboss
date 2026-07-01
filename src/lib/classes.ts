@@ -18,7 +18,7 @@ const CLASS_DEFS: ClassDef[] = [
   { name: "Aran", archetype: "Warrior", keys: ["aran"] },
   { name: "Dawn Warrior", archetype: "Warrior", keys: ["dawnwarrior", "soulmaster"] },
   { name: "Mihile", archetype: "Warrior", keys: ["mihile", "michael"] },
-  { name: "Adele", archetype: "Warrior", keys: ["adele"] },
+  { name: "Adele", archetype: "Warrior", keys: ["adele", "lefwarrior"] },
   // Mage
   { name: "Bishop", archetype: "Mage", keys: ["bishop"] },
   { name: "Arch Mage (I/L)", archetype: "Mage", keys: ["archmageicelightning", "ilarchmage", "ilmage"] },
@@ -44,7 +44,7 @@ const CLASS_DEFS: ClassDef[] = [
   { name: "Buccaneer", archetype: "Pirate", keys: ["buccaneer"] },
   { name: "Cannon Master", archetype: "Pirate", keys: ["cannonmaster", "cannoneer"] },
   { name: "Thunder Breaker", archetype: "Pirate", keys: ["thunderbreaker", "striker"] },
-  { name: "Ark", archetype: "Pirate", keys: ["ark"] },
+  { name: "Ark", archetype: "Pirate", keys: ["ark", "lefpirate"] },
 ];
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
