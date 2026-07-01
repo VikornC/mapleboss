@@ -49,10 +49,20 @@
 - [x] Removed sort toggle (rank-only) and search autocomplete preview per user feedback.
 - [x] `npm run build` clean; page returns 200.
 
+## Home redesign + character-page polish (shipped)
+- [x] Home (`src/app/page.tsx`) now leads with the EXP Tracker: **live top-5 leaderboard preview** (server component, `revalidate = 3600` ISR, try/catch fallback) + slim value-prop strip + compact icon-left "More tools" row. Narrowed to `max-w-3xl`.
+- [x] Removed the standalone Level Calculator (`/tools/exp` + `ExpCalculator.tsx`) — forecasting lives in the per-character pages now.
+- [x] Character detail estimate section: dropped the projection chart, auto-defaults target level (275 at 250+, else 250), merged the duplicate Days columns, added **MSU Navigator link** (`msu.io/navigator/character/{assetKey}` — assetKey IS the navigator id).
+- [x] Compared A/B home variants live (Option A live-preview vs B static banner); **user picked A**, temp `/home-alt` route removed.
+
+## Pi historical backfill (shipped)
+- [x] `scripts/import-pi-to-neon.ts` — idempotent, one snapshot/UTC day, skips days already in Neon. Backfilled **249 snapshots** for all 5 tracked chars (Bloop, Loot, comfy, Aura, Ante) → each now spans **Apr 10 → present** (was May 29+). Pi exp verified = within-level exp (same semantics as Neon).
+- [x] **Timezone seam fix:** the lulumi bootstrap (collected/labeled vs UTC) was off-by-one against the PST-collected Pi data → flat/duplicate days (e.g. Loot 6/30 showed ~0 gain). Deleted the 160 misaligned bootstrap rows (32/char, `rank=null`) and re-imported Pi (UTC-normalized, aligns with the crawler). Verified all 5: 82–83 snaps, Apr 10→Jul 1, no duplicate UTC days, no leftover bootstrap. See lesson in `tasks/lessons.md`.
+
+## Deploy status
+- [x] All session work pushed to origin/master → **live on www.mapleboss.com** (apex 307-redirects to www).
+
 ## Known follow-ups
-- [ ] **Push** stacked local commits to origin/master (redeploys Vercel) — awaiting explicit "push".
-- [ ] Confirm the manual GH Actions crawl advanced "Data updated" to the current day.
 - [ ] Verify EXP table against live MSU API ground truth (`exp ÷ (expr/100)`)
 - [ ] Request MSU Level 2 key for name-based search (contact_builder@nexpace.io)
-- [ ] Optionally import Pi history for other characters (Bloop, comfy, aura, ante)
-- [ ] Dead code: unused `sort`/`gainRank` branch in leaderboard route (UI no longer sends `sort`); unused `/api/exp/search` route (autocomplete removed); `/api/exp/stats/[assetKey]/planner` route + helpers.
+- [ ] Dead code: unused `sort`/`gainRank` branch in leaderboard route (UI no longer sends `sort`); unused `/api/exp/search` route (autocomplete removed); `/api/exp/stats/[assetKey]/planner` route + helpers; obsolete `scripts/import-pi-data.ts` (targeted pre-migration SQLite `dev.db`).
