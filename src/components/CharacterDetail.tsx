@@ -143,8 +143,8 @@ export default function CharacterDetail({ character: m }: { character: Character
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [dailyDays, setDailyDays] = useState(30);
   const [progressDays, setProgressDays] = useState(30);
-  const [estimateDays, setEstimateDays] = useState(30);
-  const [targetLevel, setTargetLevel] = useState("");
+  // Default the target: aim for 275 once you're 250+, otherwise 250.
+  const [targetLevel, setTargetLevel] = useState(() => ((m.level ?? 999) < 250 ? "250" : "275"));
   const [dailyExpInput, setDailyExpInput] = useState("");
 
   useEffect(() => {
@@ -184,15 +184,6 @@ export default function CharacterDetail({ character: m }: { character: Character
       data: progress.map((p) => p.level + p.pct / 100),
       borderColor: ACCENT, backgroundColor: "rgba(245, 158, 11, 0.1)",
       fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2,
-    }],
-  };
-  const projection = estimate?.projection?.slice(0, estimateDays + 1) ?? [];
-  const estimateData = {
-    labels: projection.map((p) => fmtDate(p.date)),
-    datasets: [{
-      data: projection.map((p) => p.level + p.pct / 100),
-      borderColor: ACCENT, backgroundColor: "rgba(245, 158, 11, 0.05)",
-      fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2,
     }],
   };
 
@@ -247,6 +238,14 @@ export default function CharacterDetail({ character: m }: { character: Character
                 </div>
               ))}
             </div>
+            <a
+              href={`https://msu.io/navigator/character/${assetKey}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] py-2 text-sm font-medium text-[var(--color-secondary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            >
+              View on MSU Navigator ↗
+            </a>
             {summary?.lastUpdated && (
               <div className="mt-3 text-xs text-[var(--color-muted)]">
                 Updated {new Date(summary.lastUpdated).toLocaleDateString()}
@@ -300,13 +299,22 @@ export default function CharacterDetail({ character: m }: { character: Character
 
           {/* EXP Progress Estimate */}
           <section className={cardCls}>
-            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--color-foreground)]">EXP Progress Estimate</h2>
-                <p className="text-sm text-[var(--color-muted)]">Forecast your leveling progress</p>
+                <p className="text-sm text-[var(--color-muted)]">Days and dates to reach each level at your current pace</p>
               </div>
               <div className="flex flex-wrap items-center gap-4">
-                <PeriodTabs days={estimateDays} options={[14, 30, 90, 180]} onSelect={setEstimateDays} />
+                <div className="flex items-center gap-2">
+                  <label className="whitespace-nowrap text-sm text-[var(--color-muted)]">Target Lv:</label>
+                  <input
+                    type="number" min={1} max={275}
+                    value={targetLevel}
+                    onChange={(e) => setTargetLevel(e.target.value)}
+                    placeholder="e.g. 275"
+                    className="w-24 rounded-md border border-[var(--color-accent)] bg-[var(--color-elevated)] px-3 py-1.5 text-sm text-[var(--color-foreground)] focus:border-[var(--color-accent-hover)] focus:outline-none"
+                  />
+                </div>
                 <div className="flex items-center gap-2">
                   <label className="whitespace-nowrap text-sm text-[var(--color-muted)]">Daily EXP:</label>
                   <input
@@ -319,56 +327,30 @@ export default function CharacterDetail({ character: m }: { character: Character
                 </div>
               </div>
             </div>
-            <div className="relative h-[360px]">
-              {targetLevel && estimate && !estimate.error && projection.length > 0 ? (
-                <Line data={estimateData} options={lineOptions} />
-              ) : (
-                <p className="flex h-full items-center justify-center text-sm text-[var(--color-muted)]">
-                  {(targetLevel && estimate?.error) || "Set a target level below to forecast"}
-                </p>
-              )}
-            </div>
 
-            {/* Level Milestones */}
-            <div className="mt-6 border-t border-[var(--color-border)] pt-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-base font-semibold text-[var(--color-foreground)]">Level Milestones</h3>
-                <div className="flex items-center gap-2">
-                  <label className="whitespace-nowrap text-sm text-[var(--color-muted)]">Desired Level:</label>
-                  <input
-                    type="number" min={1} max={275}
-                    value={targetLevel}
-                    onChange={(e) => setTargetLevel(e.target.value)}
-                    placeholder="e.g. 275"
-                    className="w-28 rounded-md border border-[var(--color-accent)] bg-[var(--color-elevated)] px-3 py-1.5 text-sm text-[var(--color-foreground)] focus:border-[var(--color-accent-hover)] focus:outline-none"
-                  />
-                </div>
-              </div>
-              <table className="mt-3 w-full border-collapse">
-                <thead>
-                  <tr>
-                    {["Level", "Days Required", "Days Until", "Date", "Total EXP Needed"].map((h) => (
-                      <th key={h} className="border-b border-[var(--color-border)] px-3 py-2.5 text-left text-xs tracking-wide text-[var(--color-muted)]">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {targetLevel && estimate && !estimate.error && estimate.milestones.length > 0 ? (
-                    estimate.milestones.map((mi) => (
-                      <tr key={mi.level}>
-                        <td className="border-b border-[var(--color-border)]/50 px-3 py-3 text-sm font-bold text-[var(--color-foreground)]">{mi.level}</td>
-                        <td className="border-b border-[var(--color-border)]/50 px-3 py-3 text-sm text-[var(--color-secondary)]">{mi.daysRequired} days</td>
-                        <td className="border-b border-[var(--color-border)]/50 px-3 py-3 text-sm text-[var(--color-accent)]">{mi.daysRequired} days</td>
-                        <td className="border-b border-[var(--color-border)]/50 px-3 py-3 text-sm text-[var(--color-secondary)]">{mi.date}</td>
-                        <td className="border-b border-[var(--color-border)]/50 px-3 py-3 text-sm text-[var(--color-accent)]">{formatNumber(mi.totalExpNeeded)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr><td colSpan={5} className="px-3 py-3 text-sm text-[var(--color-muted)]">{estimate?.error ?? "Set a target level above"}</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  {["Level", "Days Until", "Date", "Total EXP Needed"].map((h) => (
+                    <th key={h} className="border-b border-[var(--color-border)] px-3 py-2.5 text-left text-xs tracking-wide text-[var(--color-muted)]">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {targetLevel && estimate && !estimate.error && estimate.milestones.length > 0 ? (
+                  estimate.milestones.map((mi) => (
+                    <tr key={mi.level}>
+                      <td className="border-b border-[var(--color-border)]/50 px-3 py-3 text-sm font-bold text-[var(--color-foreground)]">{mi.level}</td>
+                      <td className="border-b border-[var(--color-border)]/50 px-3 py-3 text-sm text-[var(--color-accent)]">{mi.daysRequired} days</td>
+                      <td className="border-b border-[var(--color-border)]/50 px-3 py-3 text-sm text-[var(--color-secondary)]">{mi.date}</td>
+                      <td className="border-b border-[var(--color-border)]/50 px-3 py-3 text-sm text-[var(--color-accent)]">{formatNumber(mi.totalExpNeeded)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan={4} className="px-3 py-6 text-center text-sm text-[var(--color-muted)]">{estimate?.error ?? "Set a target level to forecast"}</td></tr>
+                )}
+              </tbody>
+            </table>
           </section>
 
           {/* Level Progress */}
