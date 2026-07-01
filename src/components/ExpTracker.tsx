@@ -177,9 +177,9 @@ export default function ExpTracker() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         {c.imageUrl ? (
-                          <div className="h-16 w-16 flex-shrink-0 overflow-hidden">
+                          <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={c.imageUrl} alt={c.name} className="h-full w-full scale-[1.6] object-contain" />
+                            <img src={c.imageUrl} alt={c.name} className="absolute left-1/2 top-1/2 h-[160%] w-[160%] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain" />
                           </div>
                         ) : (
                           <div className="h-16 w-16 flex-shrink-0 rounded bg-[var(--color-elevated)]" />

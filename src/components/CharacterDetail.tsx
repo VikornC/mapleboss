@@ -202,9 +202,9 @@ export default function CharacterDetail({ character: m }: { character: Character
           <div className={`${cardCls} pt-4 text-center lg:sticky lg:top-6`}>
             <h2 className="-mx-6 mb-4 border-b border-[var(--color-border)] px-6 pb-3 text-xl font-bold text-[var(--color-foreground)]">{m.name}</h2>
             {m.imageUrl ? (
-              <div className="mx-auto mb-2 h-56 w-56 overflow-hidden">
+              <div className="relative mx-auto mb-2 h-56 w-56 overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={m.imageUrl} alt={m.name} className="h-full w-full scale-[1.5] object-contain" />
+                <img src={m.imageUrl} alt={m.name} className="absolute left-1/2 top-1/2 h-[150%] w-[150%] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain" />
               </div>
             ) : (
               <div className="mx-auto h-56 w-56 rounded bg-[var(--color-elevated)]" />
