@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Chart as ChartJS,
   ArcElement,
@@ -29,15 +29,42 @@ const archColor = (a: string) => ARCH_COLOR[a] ?? ARCH_COLOR.Other;
 const cardCls = "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6";
 const pct = (n: number, total: number) => (total > 0 ? (n / total) * 100 : 0);
 
+const LEVELS = [
+  { label: "All levels", val: "0" },
+  { label: "Lv 240+", val: "240" },
+  { label: "Lv 250+", val: "250" },
+  { label: "Lv 255+", val: "255" },
+  { label: "Lv 260+", val: "260" },
+];
+
+// Styled select with a roomy chevron.
+function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: ReactNode }) {
+  return (
+    <div className="relative inline-block">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-w-[150px] cursor-pointer appearance-none rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] py-2 pl-3.5 pr-10 text-sm text-[var(--color-foreground)] focus:border-[var(--color-accent)] focus:outline-none"
+      >
+        {children}
+      </select>
+      <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+}
+
 export default function ClassStatsPage() {
   const [classes, setClasses] = useState<ClassInfo[] | null>(null);
+  const [minLevel, setMinLevel] = useState("0");
 
   useEffect(() => {
-    fetch("/api/exp/classes")
+    fetch(`/api/exp/classes?minLevel=${minLevel}`)
       .then((r) => (r.ok ? r.json() : []))
       .then(setClasses)
       .catch(() => setClasses([]));
-  }, []);
+  }, [minLevel]);
 
   const total = classes?.reduce((s, c) => s + c.count, 0) ?? 0;
   const sorted = [...(classes ?? [])].sort((a, b) => b.count - a.count);
@@ -92,8 +119,20 @@ export default function ClassStatsPage() {
         </p>
       </div>
 
+      {/* Filter */}
+      <div className="mb-6 flex items-center justify-center gap-3">
+        <label className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted)]">Minimum Level</label>
+        <Select value={minLevel} onChange={setMinLevel}>
+          {LEVELS.map((l) => <option key={l.val} value={l.val}>{l.label}</option>)}
+        </Select>
+      </div>
+
       {!classes ? (
         <div className="py-20 text-center text-sm text-[var(--color-muted)]">Loading…</div>
+      ) : classes.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--color-border)] py-20 text-center text-sm text-[var(--color-muted)]">
+          No characters at this level yet.
+        </div>
       ) : (
         <>
           {/* Archetype distribution */}

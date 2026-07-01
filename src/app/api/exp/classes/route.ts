@@ -1,13 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { canonicalClass, archetypeOf } from "@/lib/classes";
 
 // Distinct classes with member counts, canonicalized (variants merged) and
-// tagged with archetype, for the leaderboard class filter.
-export async function GET() {
+// tagged with archetype. Powers the leaderboard class filter and the Class
+// Population page (which can scope by minimum level via ?minLevel=).
+export async function GET(req: NextRequest) {
+  const minLevel = Math.max(0, parseInt(req.nextUrl.searchParams.get("minLevel") ?? "0", 10) || 0);
+
   const groups = await prisma.expCharacter.groupBy({
     by: ["job"],
-    where: { rank: { not: null }, job: { not: null } },
+    where: {
+      rank: { not: null },
+      job: { not: null },
+      ...(minLevel > 0 ? { level: { gte: minLevel } } : {}),
+    },
     _count: { _all: true },
   });
 
