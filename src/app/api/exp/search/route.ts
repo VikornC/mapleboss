@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
 
   const matches = await prisma.expCharacter.findMany({
-    where: { name: { contains: name } },
+    where: { name: { contains: name, mode: "insensitive" } },
     orderBy: [{ rank: "asc" }],
     take: 10,
     select: {

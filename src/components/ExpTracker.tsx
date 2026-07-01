@@ -14,6 +14,7 @@ interface LeaderRow {
   guild: string | null;
   imageUrl: string | null;
   rank: number | null;
+  classRank: number | null;
   level: number | null;
   expPct: number | null;
   dailyGain: number | null;
@@ -42,16 +43,22 @@ export default function ExpTracker() {
   const [lb, setLb] = useState<LeaderboardResponse | null>(null);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"rank" | "dailyGain">("rank");
+  const [job, setJob] = useState("all");
+  const [classes, setClasses] = useState<{ job: string; count: number }[]>([]);
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    api<{ job: string; count: number }[]>("/api/exp/classes").then((c) => c && setClasses(c));
+  }, []);
 
   useEffect(() => {
     const run = () =>
       api<LeaderboardResponse>(
-        `/api/exp/leaderboard?search=${encodeURIComponent(search)}&sort=${sort}&page=${page}&pageSize=${PAGE_SIZE}`
+        `/api/exp/leaderboard?search=${encodeURIComponent(search)}&sort=${sort}&job=${encodeURIComponent(job)}&page=${page}&pageSize=${PAGE_SIZE}`
       ).then(setLb);
     const t = setTimeout(run, search ? 300 : 0);
     return () => clearTimeout(t);
-  }, [search, sort, page]);
+  }, [search, sort, job, page]);
 
   const totalPages = lb ? Math.max(1, Math.ceil(lb.total / PAGE_SIZE)) : 1;
 
@@ -84,13 +91,25 @@ export default function ExpTracker() {
 
       {/* Toolbar: search + sort */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Search character…"
-          className="w-64 max-w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] px-3.5 py-2 text-sm text-[var(--color-foreground)] placeholder-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Search character…"
+            className="w-56 max-w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] px-3.5 py-2 text-sm text-[var(--color-foreground)] placeholder-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
+          />
+          <select
+            value={job}
+            onChange={(e) => { setJob(e.target.value); setPage(1); }}
+            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-foreground)] focus:border-[var(--color-accent)] focus:outline-none"
+          >
+            <option value="all">All classes</option>
+            {classes.map((c) => (
+              <option key={c.job} value={c.job}>{c.job} ({c.count})</option>
+            ))}
+          </select>
+        </div>
         <div className="flex gap-1 rounded-lg bg-[var(--color-surface)] p-1">
           {([["rank", "Rank"], ["dailyGain", "Top Gain"]] as const).map(([val, label]) => (
             <button
@@ -129,7 +148,7 @@ export default function ExpTracker() {
                     onClick={() => router.push(charHref(c.name))}
                     className="cursor-pointer border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-elevated)]"
                   >
-                    <td className="px-4 py-3 text-sm font-bold text-[var(--color-accent)]">{c.rank}</td>
+                    <td className="px-4 py-3 text-sm font-bold text-[var(--color-accent)]">{c.classRank ?? c.rank}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         {c.imageUrl ? (

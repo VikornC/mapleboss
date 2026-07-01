@@ -6,13 +6,15 @@ import { prisma } from "@/lib/db";
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const search = sp.get("search")?.trim() ?? "";
+  const job = sp.get("job")?.trim() ?? "";
   const sort = sp.get("sort") === "dailyGain" ? "dailyGain" : "rank";
   const page = Math.max(1, parseInt(sp.get("page") ?? "1", 10));
   const pageSize = Math.min(100, Math.max(1, parseInt(sp.get("pageSize") ?? "50", 10)));
 
   const where = {
     rank: { not: null },
-    ...(search ? { name: { contains: search } } : {}),
+    ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
+    ...(job && job !== "all" ? { job } : {}),
   };
 
   const orderBy =
@@ -61,13 +63,15 @@ export async function GET(req: NextRequest) {
     page,
     pageSize,
     updatedAt: latest._max.snappedAt,
-    characters: rows.map((c) => ({
+    characters: rows.map((c, i) => ({
       assetKey: c.assetKey,
       name: c.name,
       job: c.job,
       guild: c.guild,
       imageUrl: c.imageUrl,
       rank: c.rank,
+      // Position within the current filtered/sorted list — the "class rank" when a job filter is on.
+      classRank: job && job !== "all" ? (page - 1) * pageSize + i + 1 : null,
       level: c.level,
       expPct: c.expPct,
       dailyGain: c.dailyGain != null ? Number(c.dailyGain) : null,
