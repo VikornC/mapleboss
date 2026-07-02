@@ -18,7 +18,10 @@ concurrency:
 jobs:
   sweep:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Sweep is ~57 min at the polite 5s/page pacing. 120 min gives headroom for
+    # MSU slowness / 429 backoffs so the run completes instead of being cancelled
+    # at the timeout. Pacing is left at 5s deliberately to avoid rate-limiting.
+    timeout-minutes: 120
     if: ${{ github.event_name == 'workflow_dispatch' || vars.SWEEP_ENABLED == 'true' }}
     steps:
       - uses: actions/checkout@v4
