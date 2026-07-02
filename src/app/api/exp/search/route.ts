@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { canonicalClass } from "@/lib/classes";
 
 // Instant name search over the swept character DB. (The official dev API has no
 // player-name search at any key tier — only marketplace listings — so search is
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
     matches.map((c) => ({
       assetKey: c.assetKey,
       name: c.name,
-      class: c.job,
+      class: canonicalClass(c.job),
       server: c.guild,
       worldId: c.worldId,
       level: c.level,
