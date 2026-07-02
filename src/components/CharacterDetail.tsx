@@ -59,6 +59,10 @@ function fmtDate(iso: string) {
   const [, m, d] = iso.split("-");
   return `${m}/${d}`;
 }
+// Data day is anchored to the ranking's 00:00 UTC reset, so render it in UTC
+// (a local-time render slips the date back a day for western timezones).
+const fmtUtcDay = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
 const gainStr = (n: number | null) => (n == null ? "—" : "+" + formatNumber(n));
 
 async function api<T>(path: string, opts?: RequestInit): Promise<T | null> {
@@ -318,7 +322,7 @@ export default function CharacterDetail({ character: m }: { character: Character
             </a>
             {summary?.lastUpdated && (
               <div className="mt-3 text-xs text-[var(--color-muted)]">
-                Updated {new Date(summary.lastUpdated).toLocaleDateString()}
+                Updated {fmtUtcDay(summary.lastUpdated)} UTC
               </div>
             )}
           </div>
@@ -497,7 +501,7 @@ export default function CharacterDetail({ character: m }: { character: Character
           </div>
           <div className="mt-2.5 flex items-center justify-between px-1 text-xs text-[var(--color-muted)]">
             <span className="font-semibold text-[var(--color-accent)]">mapleboss.com</span>
-            {summary?.lastUpdated && <span>as of {new Date(summary.lastUpdated).toLocaleDateString()}</span>}
+            {summary?.lastUpdated && <span>as of {fmtUtcDay(summary.lastUpdated)} UTC</span>}
           </div>
         </div>
       </div>
