@@ -18,7 +18,10 @@ ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Filler, 
 const ACCENT = "#f59e0b";
 
 interface ClassInfo { name: string; archetype: string; count: number }
-interface Activity { series: { date: string; count: number }[]; avg: number; peak: { date: string; count: number } | null }
+interface WorldSplit { world: string; active: number; pct: number }
+interface Activity { series: { date: string; count: number }[]; avg: number; peak: { date: string; count: number } | null; worldSplit: WorldSplit[] }
+
+const WORLDS = ["Ain", "Errai", "Fang"];
 
 const RANGES = [
   { label: "7d", days: "7" },
@@ -61,6 +64,7 @@ const fmtLongDate = (iso: string) =>
 export default function ActivityPage() {
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [job, setJob] = useState("all");
+  const [world, setWorld] = useState("all");
   const [minLevel, setMinLevel] = useState("0");
   const [days, setDays] = useState("30");
   const [data, setData] = useState<Activity | null>(null);
@@ -72,12 +76,12 @@ export default function ActivityPage() {
 
   useEffect(() => {
     setLoading(true);
-    const p = new URLSearchParams({ job, minLevel, days });
+    const p = new URLSearchParams({ job, world, minLevel, days });
     fetch(`/api/exp/activity?${p}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [job, minLevel, days]);
+  }, [job, world, minLevel, days]);
 
   const series = data?.series ?? [];
   const chartData = {
@@ -137,6 +141,13 @@ export default function ActivityPage() {
           </Select>
         </div>
         <div>
+          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-[var(--color-muted)]">World</label>
+          <Select value={world} onChange={setWorld}>
+            <option value="all">All Worlds</option>
+            {WORLDS.map((w) => <option key={w} value={w}>{w}</option>)}
+          </Select>
+        </div>
+        <div>
           <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-[var(--color-muted)]">Minimum Level</label>
           <Select value={minLevel} onChange={setMinLevel}>
             {LEVELS.map((l) => <option key={l.val} value={l.val}>{l.label}</option>)}
@@ -171,6 +182,26 @@ export default function ActivityPage() {
           <div className="text-xs text-[var(--color-muted)]">{data?.peak ? fmtLongDate(data.peak.date) : "—"}</div>
         </div>
       </div>
+
+      {/* Active by world (share of active characters, respects Job/Level filters) */}
+      {data?.worldSplit && data.worldSplit.length > 0 && (
+        <div className={`${cardCls} mt-4`}>
+          <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--color-muted)]">Active by World</div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {data.worldSplit.map((w) => (
+              <div key={w.world}>
+                <div className="mb-1 flex items-baseline justify-between text-sm">
+                  <span className="font-medium text-[var(--color-foreground)]">{w.world}</span>
+                  <span className="text-[var(--color-muted)]">{w.active.toLocaleString()} · {w.pct}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded bg-[var(--color-elevated)]">
+                  <div className="h-full rounded bg-[var(--color-accent)]" style={{ width: `${w.pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Chart */}
       <section className={`${cardCls} mt-6`}>

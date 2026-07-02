@@ -24,6 +24,7 @@ export interface CharacterMeta {
   name: string;
   job: string | null;
   guild: string | null;
+  worldId: string | null;
   imageUrl: string | null;
   rank: number | null;
   level: number | null;
@@ -216,7 +217,16 @@ export default function CharacterDetail({ character: m }: { character: Character
             <div className="text-sm text-[var(--color-accent)]">
               {m.job ?? "Unknown"}{m.rank != null ? ` · Rank #${m.rank}` : ""}
             </div>
-            {m.guild && <div className="mt-0.5 text-xs text-[var(--color-muted)]">{m.guild}</div>}
+            {(m.worldId || m.guild) && (
+              <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
+                {m.worldId && (
+                  <span className="rounded-full bg-[var(--color-accent)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--color-accent)]">{m.worldId}</span>
+                )}
+                {m.guild && (
+                  <span className="rounded-full bg-[var(--color-elevated)] px-2 py-0.5 text-[11px] text-[var(--color-secondary)]">{m.guild}</span>
+                )}
+              </div>
+            )}
 
             <div className="mt-3 mb-1.5">
               <span className="block text-xs text-[var(--color-muted)]">Level EXP</span>

@@ -21,6 +21,7 @@ const getCharacter = cache(async (nameParam: string): Promise<CharacterMeta | nu
     name: c.name,
     job: c.job,
     guild: c.guild,
+    worldId: c.worldId,
     imageUrl: c.imageUrl,
     rank: c.rank,
     level: c.level,

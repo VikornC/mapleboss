@@ -10,6 +10,7 @@ interface DayRow { day: string; all_gained: number; gained: number }
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const job = sp.get("job")?.trim() ?? "all";
+  const world = sp.get("world")?.trim() ?? "all";
   const minLevel = Math.max(0, parseInt(sp.get("minLevel") ?? "0", 10) || 0);
   const rangeParam = sp.get("days") ?? "all";
 
@@ -30,17 +31,18 @@ export async function GET(req: NextRequest) {
     if (!variants.length) variants = ["__none__"];
   }
 
-  // Build the filtered-count predicate with positional params (no interpolation of user data).
+  // Shared job + min-level predicate; positional params start after $1 (cutoff).
+  function jobLevelPredicate(bag: unknown[]): string {
+    let s = "";
+    if (minLevel > 0) { bag.push(minLevel); s += ` AND s."level" >= $${bag.length}`; }
+    if (variants) { bag.push(variants); s += ` AND c."job" = ANY($${bag.length})`; }
+    return s;
+  }
+
+  // Main daily series — respects job / min-level / world.
   const params: unknown[] = [cutoff];
-  let extra = "";
-  if (minLevel > 0) {
-    params.push(minLevel);
-    extra += ` AND s."level" >= $${params.length}`;
-  }
-  if (variants) {
-    params.push(variants);
-    extra += ` AND c."job" = ANY($${params.length})`;
-  }
+  let extra = jobLevelPredicate(params);
+  if (world && world !== "all") { params.push(world); extra += ` AND c."worldId" = $${params.length}`; }
 
   const sql = `
     SELECT to_char(s."snappedAt", 'YYYY-MM-DD') AS day,
@@ -67,5 +69,21 @@ export async function GET(req: NextRequest) {
     null
   );
 
-  return NextResponse.json({ series, avg, peak });
+  // Per-world share of active characters over the range (respects job/min-level, ignores world).
+  const splitParams: unknown[] = [cutoff];
+  const splitExtra = jobLevelPredicate(splitParams);
+  const splitSql = `
+    SELECT c."worldId" AS world, COUNT(DISTINCT s."characterId")::int AS active
+    FROM "ExpSnapshot" s
+    JOIN "ExpCharacter" c ON c."id" = s."characterId"
+    WHERE s."snappedAt" >= $1 AND s."gain" > 0 AND c."worldId" IS NOT NULL${splitExtra}
+    GROUP BY c."worldId"
+  `;
+  const splitRows = (await prisma.$queryRawUnsafe(splitSql, ...splitParams)) as { world: string; active: number }[];
+  const splitTotal = splitRows.reduce((a, r) => a + r.active, 0);
+  const worldSplit = splitRows
+    .map((r) => ({ world: r.world, active: r.active, pct: splitTotal ? Math.round((r.active / splitTotal) * 1000) / 10 : 0 }))
+    .sort((a, b) => b.active - a.active);
+
+  return NextResponse.json({ series, avg, peak, worldSplit });
 }

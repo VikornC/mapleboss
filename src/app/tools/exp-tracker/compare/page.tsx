@@ -27,6 +27,7 @@ interface SelectedChar {
   name: string;
   class: string | null;
   server: string | null;
+  worldId: string | null;
   level: number | null;
   rank: number | null;
   imageUrl: string | null;
@@ -173,6 +174,7 @@ function CharCard({ c, color, onClear }: { c: SelectedChar; color: string; onCle
           <div className="truncate text-lg font-bold" style={{ color }}>{c.name}</div>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {c.class && <span className={chipCls} style={{ background: color + "22", color }}>{c.class}</span>}
+            {c.worldId && <span className={`${chipCls} bg-[var(--color-elevated)] text-[var(--color-secondary)]`}>{c.worldId}</span>}
             {c.server && <span className={`${chipCls} bg-[var(--color-elevated)] text-[var(--color-secondary)]`}>{c.server}</span>}
             {c.level != null && <span className={`${chipCls} bg-[var(--color-elevated)] text-[var(--color-secondary)]`}>Lv. {c.level}</span>}
           </div>

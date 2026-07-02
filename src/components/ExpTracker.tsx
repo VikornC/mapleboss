@@ -14,7 +14,8 @@ interface LeaderRow {
   guild: string | null;
   imageUrl: string | null;
   rank: number | null;
-  classRank: number | null;
+  worldId: string | null;
+  viewRank: number | null;
   level: number | null;
   expPct: number | null;
   dailyGain: number | null;
@@ -25,6 +26,7 @@ interface LeaderboardResponse { total: number; page: number; pageSize: number; u
 interface ClassInfo { name: string; archetype: string; count: number }
 
 const ARCHETYPE_ORDER = ["Warrior", "Mage", "Archer", "Thief", "Pirate", "Other"];
+const WORLDS = ["Ain", "Errai", "Fang"];
 const gainStr = (n: number | null) => (n == null ? "—" : "+" + formatNumber(n));
 const charHref = (name: string) => `/tools/exp-tracker/${encodeURIComponent(name)}`;
 
@@ -46,6 +48,7 @@ export default function ExpTracker() {
   const [lb, setLb] = useState<LeaderboardResponse | null>(null);
   const [search, setSearch] = useState("");
   const [job, setJob] = useState("all");
+  const [world, setWorld] = useState("all");
   const [archetype, setArchetype] = useState<string | null>(null);
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [page, setPage] = useState(1);
@@ -58,11 +61,11 @@ export default function ExpTracker() {
   useEffect(() => {
     const run = () =>
       api<LeaderboardResponse>(
-        `/api/exp/leaderboard?search=${encodeURIComponent(search)}&job=${encodeURIComponent(job)}&page=${page}&pageSize=${PAGE_SIZE}`
+        `/api/exp/leaderboard?search=${encodeURIComponent(search)}&job=${encodeURIComponent(job)}&world=${encodeURIComponent(world)}&page=${page}&pageSize=${PAGE_SIZE}`
       ).then(setLb);
     const t = setTimeout(run, search ? 250 : 0);
     return () => clearTimeout(t);
-  }, [search, job, page]);
+  }, [search, job, world, page]);
 
   const archetypes = ARCHETYPE_ORDER.filter((a) => classes.some((c) => c.archetype === a));
   const chips = archetype ? classes.filter((c) => c.archetype === archetype) : [];
@@ -114,6 +117,25 @@ export default function ExpTracker() {
           placeholder="Search character…"
           className="w-72 max-w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-elevated)] px-3.5 py-2 text-sm text-[var(--color-foreground)] placeholder-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
         />
+      </div>
+
+      {/* World filter */}
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        <button
+          onClick={() => { setWorld("all"); setPage(1); }}
+          className={`${chipBase} ${world === "all" ? "bg-[var(--color-accent)] text-black" : "border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-secondary)]"}`}
+        >
+          All worlds
+        </button>
+        {WORLDS.map((w) => (
+          <button
+            key={w}
+            onClick={() => { setWorld(w); setPage(1); }}
+            className={`${chipBase} ${world === w ? "bg-[var(--color-accent)] text-black" : "border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-secondary)]"}`}
+          >
+            {w}
+          </button>
+        ))}
       </div>
 
       {/* Class filter: archetype tabs + class chips */}
@@ -173,7 +195,7 @@ export default function ExpTracker() {
                     onClick={() => router.push(charHref(c.name))}
                     className="cursor-pointer border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-elevated)]"
                   >
-                    <td className="px-4 py-3 text-sm font-bold text-[var(--color-accent)]">{c.classRank ?? c.rank}</td>
+                    <td className="px-4 py-3 text-sm font-bold text-[var(--color-accent)]">{c.viewRank ?? c.rank}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         {c.imageUrl ? (
@@ -192,7 +214,11 @@ export default function ExpTracker() {
                           >
                             {c.name}
                           </Link>
-                          {c.guild && <div className="truncate text-xs text-[var(--color-muted)]">{c.guild}</div>}
+                          {(c.guild || c.worldId) && (
+                            <div className="truncate text-xs text-[var(--color-muted)]">
+                              {[c.guild, c.worldId].filter(Boolean).join(" · ")}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
