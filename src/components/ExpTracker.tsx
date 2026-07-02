@@ -91,7 +91,7 @@ export default function ExpTracker() {
         </div>
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">EXP Leaderboard</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-[var(--color-muted)]">
-          {lb ? `${lb.total.toLocaleString()} tracked characters` : "MapleStory N ranking tracker."}
+          Daily EXP rankings for MapleStory N.
         </p>
         {lb?.updatedAt && (
           <p className="mt-1 text-xs text-[var(--color-muted)]">
