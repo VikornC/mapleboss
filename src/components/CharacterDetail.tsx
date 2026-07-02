@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toBlob } from "html-to-image";
 import Link from "next/link";
 import {
   Chart as ChartJS,
@@ -86,6 +87,10 @@ const barOptions = {
   },
 } as const;
 
+// Same as barOptions but no animation, so the off-screen share chart is fully
+// drawn (synchronously) and ready to capture.
+const shareBarOptions = { ...barOptions, animation: false as const };
+
 const levelTick = (v: unknown) => {
   const n = Number(v);
   const lvl = Math.floor(n);
@@ -140,6 +145,7 @@ export default function CharacterDetail({ character: m }: { character: Character
   const [summary, setSummary] = useState<Summary | null>(null);
   const [averages, setAverages] = useState<Averages | null>(null);
   const [daily, setDaily] = useState<DailyGain[]>([]);
+  const [shareDaily, setShareDaily] = useState<DailyGain[]>([]); // fixed 90d window for the share card
   const [progress, setProgress] = useState<ProgressPoint[]>([]);
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [dailyDays, setDailyDays] = useState(30);
@@ -147,6 +153,31 @@ export default function CharacterDetail({ character: m }: { character: Character
   // Default the target: aim for 275 once you're 250+, otherwise 250.
   const [targetLevel, setTargetLevel] = useState(() => ((m.level ?? 999) < 250 ? "250" : "275"));
   const [dailyExpInput, setDailyExpInput] = useState("");
+
+  // Copy the character card to the clipboard as a PNG (MapleRanks-style share).
+  const shareRef = useRef<HTMLDivElement>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copying" | "copied" | "error">("idle");
+  // The share card composes async-fetched data (daily gains + averages). Don't let
+  // it be captured until those are in, or the image comes out half-empty.
+  const shareReady = shareDaily.length > 0 && !!averages;
+  async function copyCard() {
+    if (!shareRef.current || copyState === "copying" || !shareReady) return;
+    setCopyState("copying");
+    try {
+      const blob = await toBlob(shareRef.current, {
+        pixelRatio: 2,
+        backgroundColor: "#09090b",
+        filter: (node) => !(node instanceof HTMLElement && node.dataset.noCapture === "true"),
+      });
+      if (!blob) throw new Error("no blob");
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    } finally {
+      setTimeout(() => setCopyState("idle"), 2000);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -163,6 +194,11 @@ export default function CharacterDetail({ character: m }: { character: Character
     api<DailyGain[]>(`/api/exp/stats/${encodeURIComponent(assetKey)}/gains?days=${dailyDays}`).then((d) => setDaily(d ?? []));
   }, [assetKey, dailyDays]);
 
+  // Fixed 90-day window for the share card (independent of the visible chart's tab).
+  useEffect(() => {
+    api<DailyGain[]>(`/api/exp/stats/${encodeURIComponent(assetKey)}/gains?days=90`).then((d) => setShareDaily(d ?? []));
+  }, [assetKey]);
+
   useEffect(() => {
     api<ProgressPoint[]>(`/api/exp/stats/${encodeURIComponent(assetKey)}/progress?days=${progressDays}`).then((p) => setProgress(p ?? []));
   }, [assetKey, progressDays]);
@@ -178,6 +214,10 @@ export default function CharacterDetail({ character: m }: { character: Character
   const dailyData = {
     labels: daily.map((d) => fmtDate(d.date)),
     datasets: [{ data: daily.map((d) => d.expGained), backgroundColor: ACCENT, borderRadius: 4, borderSkipped: false as const }],
+  };
+  const shareDailyData = {
+    labels: shareDaily.map((d) => fmtDate(d.date)),
+    datasets: [{ data: shareDaily.map((d) => d.expGained), backgroundColor: ACCENT, borderRadius: 4, borderSkipped: false as const }],
   };
   const progressData = {
     labels: progress.map((p) => fmtDate(p.date)),
@@ -200,12 +240,32 @@ export default function CharacterDetail({ character: m }: { character: Character
       <div className="mt-6 flex gap-8 max-lg:flex-col">
         {/* ── Character card (left) ── */}
         <aside className="w-80 flex-shrink-0 max-lg:w-full">
-          <div className={`${cardCls} pt-4 text-center lg:sticky lg:top-6`}>
+          <div className={`${cardCls} relative pt-4 text-center lg:sticky lg:top-6`}>
+            <button
+              data-no-capture="true"
+              onClick={copyCard}
+              disabled={!shareReady || copyState === "copying"}
+              title={shareReady ? "Copy card image to clipboard" : "Loading data…"}
+              className={`absolute right-2.5 top-2.5 z-10 flex items-center rounded-md px-1.5 py-1 transition-colors ${shareReady ? "text-[var(--color-muted)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-accent)]" : "cursor-not-allowed text-[var(--color-border)]"}`}
+            >
+              {copyState === "copied" ? (
+                <span className="text-[11px] font-medium text-[var(--color-accent)]">Copied!</span>
+              ) : copyState === "error" ? (
+                <span className="text-[11px] font-medium text-red-400">Failed</span>
+              ) : copyState === "copying" ? (
+                <span className="text-[11px] text-[var(--color-muted)]">…</span>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14.5 4h-5L8 6H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-4l-1.5-2Z" />
+                  <circle cx="12" cy="13" r="3.5" />
+                </svg>
+              )}
+            </button>
             <h2 className="-mx-6 mb-4 border-b border-[var(--color-border)] px-6 pb-3 text-xl font-bold text-[var(--color-foreground)]">{m.name}</h2>
             {m.imageUrl ? (
               <div className="relative mx-auto mb-2 h-56 w-56 overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={m.imageUrl} alt={m.name} className="absolute left-1/2 top-1/2 h-[150%] w-[150%] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain" />
+                <img src={`/api/img?u=${encodeURIComponent(m.imageUrl)}`} alt={m.name} className="absolute left-1/2 top-1/2 h-[150%] w-[150%] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain" />
               </div>
             ) : (
               <div className="mx-auto h-56 w-56 rounded bg-[var(--color-elevated)]" />
@@ -379,6 +439,67 @@ export default function CharacterDetail({ character: m }: { character: Character
             </div>
           </section>
         </main>
+      </div>
+
+      {/* Composed share card — clipped to 0 height (hidden on the page) but laid out
+          in normal flow at valid coordinates, so html-to-image can capture it. The
+          camera button copies it to the clipboard. */}
+      <div aria-hidden className="pointer-events-none h-0 overflow-hidden">
+        <div ref={shareRef} style={{ width: 980 }} className="bg-[var(--color-background)] p-6">
+          <div className="flex gap-6 rounded-2xl border border-[var(--color-accent)]/25 bg-[var(--color-surface)] p-7">
+            {/* Identity */}
+            <div className="w-56 flex-shrink-0 text-center">
+              {m.imageUrl && (
+                <div className="relative mx-auto mb-1 h-40 w-40 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/api/img?u=${encodeURIComponent(m.imageUrl)}`} alt="" className="absolute left-1/2 top-1/2 h-[150%] w-[150%] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain" />
+                </div>
+              )}
+              <div className="text-2xl font-bold text-[var(--color-foreground)]">{m.name}</div>
+              <div className="mt-1 flex items-baseline justify-center gap-1.5">
+                <span className="text-[11px] tracking-[3px] text-[var(--color-muted)]">LEVEL</span>
+                <span className="text-4xl font-bold text-[var(--color-accent)]">{summary?.level ?? m.level ?? "-"}</span>
+              </div>
+              <div className="text-sm text-[var(--color-accent)]">{m.job ?? "Unknown"}{m.rank != null ? ` · Rank #${m.rank}` : ""}</div>
+              <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
+                {m.worldId && <span className="rounded-full bg-[var(--color-accent)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--color-accent)]">{m.worldId}</span>}
+                {m.guild && <span className="rounded-full bg-[var(--color-elevated)] px-2 py-0.5 text-[11px] text-[var(--color-secondary)]">{m.guild}</span>}
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--color-border)] pt-3">
+                {([["Daily", m.dailyGain], ["Weekly", m.weeklyGain], ["Monthly", m.monthlyGain]] as const).map(([label, val]) => (
+                  <div key={label}>
+                    <div className="text-[10px] uppercase tracking-wider text-[var(--color-muted)]">{label}</div>
+                    <div className="text-xs font-semibold text-[var(--color-accent)]">{gainStr(val)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Chart + averages */}
+            <div className="flex flex-1 flex-col">
+              <div className="text-sm font-semibold text-[var(--color-foreground)]">Daily EXP Gains <span className="font-normal text-[var(--color-muted)]">· 90 days</span></div>
+              <div className="relative mt-2 h-[240px]">
+                {shareDaily.length > 0 ? <Bar data={shareDailyData} options={shareBarOptions} /> : (
+                  <div className="flex h-full items-center justify-center text-sm text-[var(--color-muted)]">No data yet</div>
+                )}
+              </div>
+              {averages && (
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {(["7d", "14d", "30d", "90d"] as const).map((p) => (
+                    <div key={p} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-2.5 text-center">
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--color-muted)]">{p} avg</div>
+                      <div className="text-sm font-bold text-[var(--color-foreground)]">{formatNumber(averages[p].avgPerDay)}</div>
+                      <div className="text-[10px] text-[var(--color-muted)]">/ day</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-center justify-between px-1 text-xs text-[var(--color-muted)]">
+            <span className="font-semibold text-[var(--color-accent)]">mapleboss.com</span>
+            {summary?.lastUpdated && <span>as of {new Date(summary.lastUpdated).toLocaleDateString()}</span>}
+          </div>
+        </div>
       </div>
     </div>
   );
