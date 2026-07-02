@@ -16,7 +16,7 @@ import { prisma } from "../src/lib/db";
 
 async function main() {
   const topN = parseInt(process.env.RANKING_TOP_N ?? "6844", 10);
-  const minLevel = parseInt(process.env.MIN_LEVEL ?? "225", 10);
+  const minLevel = parseInt(process.env.MIN_LEVEL ?? "230", 10);
   const delayMs = parseInt(process.env.SWEEP_DELAY_MS ?? "5000", 10);
   const retentionDays = parseInt(process.env.RETENTION_DAYS ?? "120", 10);
 

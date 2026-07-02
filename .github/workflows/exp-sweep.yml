@@ -40,6 +40,6 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RANKING_TOP_N: ${{ vars.RANKING_TOP_N || '6844' }}
-          MIN_LEVEL: ${{ vars.MIN_LEVEL || '225' }}
+          MIN_LEVEL: ${{ vars.MIN_LEVEL || '230' }}
           SWEEP_DELAY_MS: ${{ vars.SWEEP_DELAY_MS || '5000' }}
           RETENTION_DAYS: ${{ vars.RETENTION_DAYS || '120' }}
