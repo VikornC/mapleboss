@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -46,12 +47,18 @@ const triggerBase = "flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font
 
 export default function NavBar() {
   const pathname = usePathname();
+  // Which dropdown is open (by label), or null. Controlled so it closes on
+  // navigation / click instead of lingering while the cursor is still on the trigger.
+  const [open, setOpen] = useState<string | null>(null);
+
+  // Close any open menu whenever the route changes.
+  useEffect(() => setOpen(null), [pathname]);
 
   return (
     <nav className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-background)]">
       <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-6 px-4 md:px-8">
         {/* Logo */}
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5" onClick={() => setOpen(null)}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-[var(--color-accent)]">
             <path d="M12 2C12 2 9.5 5.5 8 7C6.5 8.5 4 9 2 9C2 9 3 12 5 13.5C5 13.5 3 15 2 17C4 17 6.5 16.5 8 15.5C8 15.5 9 18 10 20L12 22L14 20C15 18 16 15.5 16 15.5C17.5 16.5 20 17 22 17C21 15 19 13.5 19 13.5C21 12 22 9 22 9C20 9 17.5 8.5 16 7C14.5 5.5 12 2 12 2Z" fill="currentColor" />
           </svg>
@@ -74,10 +81,17 @@ export default function NavBar() {
               );
             }
             const parentActive = item.children.some((c) => childActive(pathname, c, item.children!));
+            const isOpen = open === item.label;
             return (
-              <div key={item.label} className="group relative">
+              <div
+                key={item.label}
+                className="relative"
+                onMouseEnter={() => setOpen(item.label)}
+                onMouseLeave={() => setOpen(null)}
+              >
                 <button
-                  className={`${triggerBase} ${parentActive ? "text-[var(--color-foreground)]" : "text-[var(--color-muted)] group-hover:text-[var(--color-secondary)]"}`}
+                  onClick={() => setOpen((o) => (o === item.label ? null : item.label))}
+                  className={`${triggerBase} ${parentActive || isOpen ? "text-[var(--color-foreground)]" : "text-[var(--color-muted)] hover:text-[var(--color-secondary)]"}`}
                 >
                   {item.label}
                   <svg
@@ -85,31 +99,34 @@ export default function NavBar() {
                     height="12"
                     viewBox="0 0 12 12"
                     fill="none"
-                    className="transition-transform duration-200 group-hover:rotate-180"
+                    className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                   >
                     <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
                 {/* Menu (pt-2 bridge keeps hover alive across the gap) */}
-                <div className="absolute left-0 top-full hidden min-w-[190px] pt-2 group-hover:block group-focus-within:block">
-                  <div
-                    className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-xl"
-                    style={{ transformOrigin: "top", animation: "dropdown 0.15s ease" }}
-                  >
-                    {item.children.map((c) => {
-                      const active = childActive(pathname, c, item.children!);
-                      return (
-                        <Link
-                          key={c.href}
-                          href={c.href}
-                          className={`block rounded-md px-3 py-2 text-sm transition-colors ${active ? "bg-[var(--color-elevated)] text-[var(--color-foreground)]" : "text-[var(--color-secondary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-foreground)]"}`}
-                        >
-                          {c.label}
-                        </Link>
-                      );
-                    })}
+                {isOpen && (
+                  <div className="absolute left-0 top-full min-w-[190px] pt-2">
+                    <div
+                      className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-xl"
+                      style={{ transformOrigin: "top", animation: "dropdown 0.15s ease" }}
+                    >
+                      {item.children.map((c) => {
+                        const active = childActive(pathname, c, item.children!);
+                        return (
+                          <Link
+                            key={c.href}
+                            href={c.href}
+                            onClick={() => setOpen(null)}
+                            className={`block rounded-md px-3 py-2 text-sm transition-colors ${active ? "bg-[var(--color-elevated)] text-[var(--color-foreground)]" : "text-[var(--color-secondary)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-foreground)]"}`}
+                          >
+                            {c.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             );
           })}
