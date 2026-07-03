@@ -1,13 +1,16 @@
 name: EXP Leaderboard Sweep
 
 # Once-daily crawler that snapshots the MSU ranking leaderboard into the DB.
-# Runs ~40 min after the 00:00 UTC ranking reset. Also runnable on demand.
+#
+# Primary trigger is Vercel Cron (see vercel.json), which fires on time and
+# dispatches this workflow via API — GitHub's own `on: schedule` is best-effort
+# and routinely fires hours late at the top of the UTC day. The 12:40-UTC
+# schedule below stays only as a dedup-safe fallback in case Vercel ever misses.
 # Inert until DATABASE_URL is configured in repo secrets.
 
 on:
   schedule:
-    - cron: "40 0 * * *"  # 00:40 UTC — primary daily run (after the ranking reset)
-    - cron: "40 12 * * *" # 12:40 UTC — fallback; dedup makes it a no-op unless the AM run failed (e.g. MSU down)
+    - cron: "40 12 * * *" # 12:40 UTC — fallback only; dedup makes it a no-op unless the primary run failed
   workflow_dispatch:
 
 # Avoid overlapping runs.
