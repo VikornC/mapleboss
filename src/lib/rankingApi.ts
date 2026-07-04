@@ -105,7 +105,10 @@ export async function fetchRankingPage(pageNo: number, maxRetries = 5): Promise<
       continue;
     }
 
-    if (res.status === 429) {
+    // 429 = rate-limit; 403 = MSU's edge/WAF momentarily blocking the caller
+    // (seen on GitHub Actions runner IPs). Both clear on their own, so back off
+    // with escalating waits (60s, 120s, ...) rather than giving up fast.
+    if (res.status === 429 || res.status === 403) {
       await sleep(60_000 * (attempt + 1));
       continue;
     }
