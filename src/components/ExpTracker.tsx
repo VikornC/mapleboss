@@ -81,9 +81,10 @@ export default function ExpTracker() {
     setJob((cur) => (cur === name ? "all" : name));
     setPage(1);
   }
-  // Click a gain header to sort high -> low; click the active one again to
-  // return to the default global-rank order.
-  function toggleSort(col: "daily" | "weekly" | "monthly") {
+  // Click a sortable header to activate it; click the active one again to
+  // return to the default global-rank order. Gains sort high -> low; level
+  // sorts low -> high (level high -> low already equals the default order).
+  function toggleSort(col: "daily" | "weekly" | "monthly" | "level") {
     setSort((cur) => (cur === col ? "rank" : col));
     setPage(1);
   }
@@ -187,7 +188,16 @@ export default function ExpTracker() {
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Character</th>
                 <th className="px-4 py-3">Job</th>
-                <th className="px-4 py-3 text-right">Lv</th>
+                <th className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => toggleSort("level")}
+                    className={`inline-flex items-center gap-1 uppercase tracking-wider transition-colors hover:text-[var(--color-secondary)] ${sort === "level" ? "text-[var(--color-accent)]" : ""}`}
+                    title="Sort by level, low to high"
+                  >
+                    Lv
+                    <span className={sort === "level" ? "opacity-100" : "opacity-30"}>↑</span>
+                  </button>
+                </th>
                 <th className="px-4 py-3 text-right">EXP%</th>
                 {(["daily", "weekly", "monthly"] as const).map((col) => (
                   <th key={col} className="px-4 py-3 text-right">
