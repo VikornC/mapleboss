@@ -49,6 +49,7 @@ export default function ExpTracker() {
   const [search, setSearch] = useState("");
   const [job, setJob] = useState("all");
   const [world, setWorld] = useState("all");
+  const [sort, setSort] = useState("rank");
   const [archetype, setArchetype] = useState<string | null>(null);
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [page, setPage] = useState(1);
@@ -61,11 +62,11 @@ export default function ExpTracker() {
   useEffect(() => {
     const run = () =>
       api<LeaderboardResponse>(
-        `/api/exp/leaderboard?search=${encodeURIComponent(search)}&job=${encodeURIComponent(job)}&world=${encodeURIComponent(world)}&page=${page}&pageSize=${PAGE_SIZE}`
+        `/api/exp/leaderboard?search=${encodeURIComponent(search)}&job=${encodeURIComponent(job)}&world=${encodeURIComponent(world)}&sort=${sort}&page=${page}&pageSize=${PAGE_SIZE}`
       ).then(setLb);
     const t = setTimeout(run, search ? 250 : 0);
     return () => clearTimeout(t);
-  }, [search, job, world, page]);
+  }, [search, job, world, sort, page]);
 
   const archetypes = ARCHETYPE_ORDER.filter((a) => classes.some((c) => c.archetype === a));
   const chips = archetype ? classes.filter((c) => c.archetype === archetype) : [];
@@ -78,6 +79,12 @@ export default function ExpTracker() {
   }
   function selectChip(name: string) {
     setJob((cur) => (cur === name ? "all" : name));
+    setPage(1);
+  }
+  // Click a gain header to sort high -> low; click the active one again to
+  // return to the default global-rank order.
+  function toggleSort(col: "daily" | "weekly" | "monthly") {
+    setSort((cur) => (cur === col ? "rank" : col));
     setPage(1);
   }
 
@@ -182,9 +189,18 @@ export default function ExpTracker() {
                 <th className="px-4 py-3">Job</th>
                 <th className="px-4 py-3 text-right">Lv</th>
                 <th className="px-4 py-3 text-right">EXP%</th>
-                <th className="px-4 py-3 text-right">Daily</th>
-                <th className="px-4 py-3 text-right">Weekly</th>
-                <th className="px-4 py-3 text-right">Monthly</th>
+                {(["daily", "weekly", "monthly"] as const).map((col) => (
+                  <th key={col} className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => toggleSort(col)}
+                      className={`inline-flex items-center gap-1 uppercase tracking-wider transition-colors hover:text-[var(--color-secondary)] ${sort === col ? "text-[var(--color-accent)]" : ""}`}
+                      title="Sort high to low"
+                    >
+                      {col}
+                      <span className={sort === col ? "opacity-100" : "opacity-30"}>↓</span>
+                    </button>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
