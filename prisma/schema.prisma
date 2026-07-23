@@ -29,6 +29,17 @@ model ExpCharacter {
   snapshots ExpSnapshot[]
 }
 
+// Live EXP-per-level curve, keyed by level. Sourced from MSU's navigator /info
+// `totalExp` field (the EXP required to complete that level, class-independent).
+// The daily crawler refreshes these, so the table self-heals when MSU rebalances
+// EXP. Overlaid on the static EXP_TABLE fallback in src/lib/expData.ts.
+model ExpLevelReq {
+  level     Int      @id
+  totalExp  BigInt
+  source    String? // "live" (from totalExp) | "provisional" (extrapolated)
+  updatedAt DateTime @updatedAt
+}
+
 model ExpSnapshot {
   id          Int          @id @default(autoincrement())
   characterId Int

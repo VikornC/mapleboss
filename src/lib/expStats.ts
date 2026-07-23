@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { formatNumber } from "@/lib/format";
-import { EXP_TABLE, cumulativeExp } from "@/lib/expData";
+import { cumulativeExp, expToNextFor, hydrateExpTable } from "@/lib/expData";
 
 // A minimal snapshot shape for gain math (level + within-level exp + time).
 export interface SnapshotLike {
@@ -50,7 +50,7 @@ export function computePeriodGains(snapshots: SnapshotLike[], now: Date = new Da
 
 // Derive expToNext from stored snapshot data (avoids depending on incomplete EXP table for levels 250+)
 function deriveExpToNext(exp: bigint, expPct: number): number {
-  if (expPct <= 0) return EXP_TABLE[0] ?? 0;
+  if (expPct <= 0) return 0;
   return Math.round(Number(exp) / (expPct / 100));
 }
 
@@ -171,6 +171,7 @@ function computeDailyGains(snapshots: Awaited<ReturnType<typeof getSnapshots>>):
 }
 
 export async function getDailyGains(assetKey: string, days: number): Promise<DailyGain[]> {
+  await hydrateExpTable();
   const snapshots = await getSnapshots(assetKey, days + 1);
   return computeDailyGains(snapshots);
 }
@@ -199,6 +200,7 @@ export async function getAverages(assetKey: string): Promise<Averages | null> {
 
 // Historical level + EXP% over time, for the Level Progress line chart
 export async function getLevelProgress(assetKey: string, days: number): Promise<ProgressPoint[]> {
+  await hydrateExpTable();
   const snapshots = await getSnapshots(assetKey, days);
   return snapshots.map((s) => {
     const expToNext = deriveExpToNext(s.exp, s.expPct);
@@ -237,7 +239,7 @@ export async function getEstimate(
   if (avgDaily <= 0) return { error: "Not enough data to estimate" };
   if (targetLevel <= currentLevel) return { error: "Already at or past target level" };
 
-  const expToNext = (lvl: number, fallback: number) => EXP_TABLE[lvl] ?? fallback;
+  const expToNext = (lvl: number, fallback: number) => expToNextFor(lvl) || fallback;
 
   // Total EXP needed to reach target
   let totalExpNeeded = summary.expToNext - currentExp;
@@ -298,6 +300,7 @@ export async function getEstimate(
 }
 
 export async function getCharacterSummary(assetKey: string): Promise<CharacterSummary | null> {
+  await hydrateExpTable();
   const character = await prisma.expCharacter.findUnique({ where: { assetKey } });
   if (!character) return null;
 
@@ -318,6 +321,7 @@ export async function getCharacterSummary(assetKey: string): Promise<CharacterSu
 }
 
 export async function getAllTimeBest(assetKey: string): Promise<AllTimeBest | null> {
+  await hydrateExpTable();
   const snapshots = await getSnapshots(assetKey);
   const gains = computeDailyGains(snapshots);
   if (gains.length === 0) return null;
@@ -348,7 +352,7 @@ export async function getLevelPlannerAt(
   let expNeeded = summary.expToNext - summary.exp;
   // Add full levels between current and target
   for (let lvl = summary.level + 1; lvl < targetLevel; lvl++) {
-    expNeeded += EXP_TABLE[lvl] ?? summary.expToNext; // fallback to current level size for unknown levels
+    expNeeded += expToNextFor(lvl) || summary.expToNext; // fallback to current level size for unknown levels
   }
 
   const days = Math.ceil(expNeeded / avgPerDay);
@@ -372,7 +376,7 @@ export async function getRequiredGain(
 
   let expNeeded = summary.expToNext - summary.exp;
   for (let lvl = summary.level + 1; lvl < targetLevel; lvl++) {
-    expNeeded += EXP_TABLE[lvl] ?? summary.expToNext;
+    expNeeded += expToNextFor(lvl) || summary.expToNext;
   }
 
   const targetDate = new Date(targetDateStr);

@@ -57,17 +57,58 @@ export const EXP_TABLE: Record<number, number> = {
 
 export const MAX_LEVEL = 275;
 
-// Prefix sums of EXP_TABLE: PREFIX[L] = total EXP to go from level 1 to level L.
-// PREFIX[1] = 0. Cached once at module load.
-const PREFIX: number[] = (() => {
+// The static EXP_TABLE above is only the seed/fallback. MSU periodically
+// rebalances EXP, so the *authoritative* per-level requirements live in the
+// `ExpLevelReq` DB table (fed by the daily crawler's navigator /info reads).
+// `hydrateExpTable()` overlays those live values onto the active table; every
+// EXP computation reads the active table, so it self-heals across rebalances.
+// Callers should `await hydrateExpTable()` before relying on fresh values; if
+// they don't, they transparently fall back to the static seed.
+let ACTIVE: Record<number, number> = { ...EXP_TABLE };
+
+function buildPrefix(table: Record<number, number>): number[] {
   const p: number[] = [0, 0]; // index 0 unused, level 1 = 0
   let acc = 0;
   for (let l = 1; l <= MAX_LEVEL; l++) {
-    acc += EXP_TABLE[l] ?? 0;
+    acc += table[l] ?? 0;
     p[l + 1] = acc;
   }
   return p;
-})();
+}
+let ACTIVE_PREFIX: number[] = buildPrefix(ACTIVE);
+
+// Cache the DB overlay for a short TTL so warm serverless instances issue at
+// most one small query per window. The crawler and scripts get a fresh read
+// each process start (module state is per-process).
+let lastHydrated = 0;
+const HYDRATE_TTL_MS = 5 * 60 * 1000;
+let hydrating: Promise<void> | null = null;
+
+export async function hydrateExpTable(force = false): Promise<void> {
+  if (!force && Date.now() - lastHydrated < HYDRATE_TTL_MS) return;
+  if (hydrating) return hydrating;
+  hydrating = (async () => {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const rows = await prisma.expLevelReq.findMany({ select: { level: true, totalExp: true } });
+      if (rows.length) {
+        const next: Record<number, number> = { ...EXP_TABLE };
+        for (const r of rows) next[r.level] = Number(r.totalExp);
+        ACTIVE = next;
+        ACTIVE_PREFIX = buildPrefix(next);
+      }
+      lastHydrated = Date.now();
+    } finally {
+      hydrating = null;
+    }
+  })();
+  return hydrating;
+}
+
+/** EXP required to complete `level` (go from `level` to `level+1`). */
+export function expToNextFor(level: number): number {
+  return ACTIVE[level] ?? 0;
+}
 
 /**
  * Total cumulative EXP earned since level 1, given a level and the within-level
@@ -75,16 +116,16 @@ const PREFIX: number[] = (() => {
  * base cancels. Max value (~253T at L275) is well under Number.MAX_SAFE_INTEGER.
  */
 export function cumulativeExp(level: number, withinLevelExp: number): number {
-  const base = PREFIX[level] ?? PREFIX[MAX_LEVEL] ?? 0;
+  const base = ACTIVE_PREFIX[level] ?? ACTIVE_PREFIX[MAX_LEVEL] ?? 0;
   return base + withinLevelExp;
 }
 
 export function calcExpNeeded(currentLevel: number, currentPct: number, targetLevel: number): number {
   if (targetLevel <= currentLevel) return 0;
-  const remaining = (EXP_TABLE[currentLevel] ?? 0) * (1 - currentPct / 100);
+  const remaining = (ACTIVE[currentLevel] ?? 0) * (1 - currentPct / 100);
   let total = remaining;
   for (let l = currentLevel + 1; l < targetLevel; l++) {
-    total += EXP_TABLE[l] ?? 0;
+    total += ACTIVE[l] ?? 0;
   }
   return Math.ceil(total);
 }
