@@ -29,7 +29,7 @@ const TYPE_B: Step[] = [
   { pos: "6-1", shots: 1 },
 ];
 
-function Pattern({ label, steps }: { label: string; steps: Step[] }) {
+function Pattern({ label, steps, image }: { label: string; steps: Step[]; image: string }) {
   const total = steps.reduce((s, x) => s + x.shots, 0);
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -41,6 +41,12 @@ function Pattern({ label, steps }: { label: string; steps: Step[] }) {
           {total} shots
         </span>
       </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={image}
+        alt={`Esfera daily Type ${label} target layout and power gauge`}
+        className="w-full border-b border-[var(--color-border)] object-contain"
+      />
       <ol className="divide-y divide-[var(--color-border)]">
         {steps.map((step, i) => (
           <li key={i} className="flex items-center gap-4 px-5 py-3">
@@ -86,8 +92,8 @@ export default function EsferaDailyPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <Pattern label="A" steps={TYPE_A} />
-        <Pattern label="B" steps={TYPE_B} />
+        <Pattern label="A" steps={TYPE_A} image="/images/esfera/type-a.png" />
+        <Pattern label="B" steps={TYPE_B} image="/images/esfera/type-b.png" />
       </div>
 
       <p className="mx-auto mt-6 max-w-lg text-center text-xs text-[var(--color-muted)]">
