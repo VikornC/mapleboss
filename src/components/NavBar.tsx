@@ -29,6 +29,7 @@ const NAV: NavItem[] = [
     children: [
       { label: "Battle Calculator", href: "/tools/battle-calc" },
       { label: "Hungry Muto", href: "/tools/muto" },
+      { label: "Esfera Daily", href: "/tools/esfera-daily" },
     ],
   },
 ];
