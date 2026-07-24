@@ -105,19 +105,55 @@ export async function hydrateExpTable(force = false): Promise<void> {
   return hydrating;
 }
 
-/** EXP required to complete `level` (go from `level` to `level+1`). */
-export function expToNextFor(level: number): number {
-  return ACTIVE[level] ?? 0;
+/**
+ * EXP required to complete `level`. MSU rolls EXP reductions out per character
+ * (a character's within-level EXP is cached and only re-scales when it next
+ * updates), so old and new readings coexist. A reading whose within-level EXP
+ * exceeds the current (reduced) requirement is impossible under the new curve,
+ * so it's still on the OLD curve — use the old (static) requirement for it.
+ * Pass `withinLevelExp` to get this per-reading resolution; omit it (e.g. for
+ * future-level forecasts) to always get the current requirement.
+ */
+export function expToNextFor(level: number, withinLevelExp?: number): number {
+  const cur = ACTIVE[level] ?? 0;
+  if (withinLevelExp != null && cur > 0 && withinLevelExp > cur) return EXP_TABLE[level] ?? cur;
+  return cur;
 }
 
+// Prefix sums of the OLD (static) curve, for pre-reduction readings. Static, so
+// built once. ACTIVE_PREFIX is the current (post-reduction) curve.
+const OLD_PREFIX: number[] = buildPrefix(EXP_TABLE);
+
 /**
- * Total cumulative EXP earned since level 1, given a level and the within-level
- * EXP. Exact and level-up-safe — gains are differences of this, so the level-1
- * base cancels. Max value (~253T at L275) is well under Number.MAX_SAFE_INTEGER.
+ * Cumulative EXP per snapshot for a chronological series, gains-safe across a
+ * reduction. MSU rolls reductions out per character, so a character's series has
+ * an old-curve prefix (before it transitions) and a new-curve prefix (after).
+ * A reading with within-level EXP above the current requirement is definitively
+ * old-curve; the last such index marks the transition, so everything up to it
+ * uses the old prefix and everything after uses the new one. Within-era gains
+ * are exact; only the single transition step is cross-era (its diff is clamped
+ * to 0 by callers, since the two curves aren't a common scale).
  */
+export function cumulativeSeries(series: { level: number; exp: number }[]): number[] {
+  let lastOld = -1;
+  for (let i = 0; i < series.length; i++) {
+    const nr = ACTIVE[series[i].level] ?? 0;
+    if (nr > 0 && series[i].exp > nr) lastOld = i;
+  }
+  return series.map((s, i) => {
+    const old = i <= lastOld;
+    const prefix = old ? OLD_PREFIX : ACTIVE_PREFIX;
+    const req = (old ? EXP_TABLE[s.level] : ACTIVE[s.level]) ?? 0;
+    const base = prefix[s.level] ?? prefix[MAX_LEVEL] ?? 0;
+    return base + (req > 0 ? Math.min(s.exp, req) : s.exp);
+  });
+}
+
+/** Single-reading cumulative EXP on the current curve (capped at the level req). */
 export function cumulativeExp(level: number, withinLevelExp: number): number {
   const base = ACTIVE_PREFIX[level] ?? ACTIVE_PREFIX[MAX_LEVEL] ?? 0;
-  return base + withinLevelExp;
+  const req = ACTIVE[level] ?? 0;
+  return base + (req > 0 ? Math.min(withinLevelExp, req) : withinLevelExp);
 }
 
 export function calcExpNeeded(currentLevel: number, currentPct: number, targetLevel: number): number {

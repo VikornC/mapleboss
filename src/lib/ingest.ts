@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/db";
-import { cumulativeExp, expToNextFor, hydrateExpTable } from "@/lib/expData";
+import { cumulativeSeries, expToNextFor, hydrateExpTable } from "@/lib/expData";
 import { computePeriodGains } from "@/lib/expStats";
 import { sweepTopRanks } from "@/lib/rankingApi";
 import { fetchNavigatorInfo } from "@/lib/navigatorApi";
 
 function expPctFor(level: number, exp: number): number {
-  const toNext = expToNextFor(level);
+  const toNext = expToNextFor(level, exp); // per-reading (old vs new curve)
   if (toNext <= 0) return 0; // level cap or unknown
   return Math.min(100, (exp / toNext) * 100);
 }
@@ -114,11 +114,15 @@ export async function ingestSweep(
       where: { characterId: character.id },
       orderBy: { snappedAt: "desc" },
     });
-    const cumNow = cumulativeExp(row.level, row.exp);
-    const gain =
-      prev != null
-        ? Math.max(0, Math.round(cumNow - cumulativeExp(prev.level, Number(prev.exp))))
-        : null;
+    // Era-aware gain (handles the per-character reduction transition).
+    let gain: number | null = null;
+    if (prev != null) {
+      const c = cumulativeSeries([
+        { level: prev.level, exp: Number(prev.exp) },
+        { level: row.level, exp: row.exp },
+      ]);
+      gain = Math.max(0, Math.round(c[1] - c[0]));
+    }
 
     await prisma.expSnapshot.create({
       data: {

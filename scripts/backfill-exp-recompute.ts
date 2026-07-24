@@ -14,7 +14,7 @@
  * Run: npx tsx scripts/backfill-exp-recompute.ts
  */
 import { prisma } from "../src/lib/db";
-import { hydrateExpTable, cumulativeExp } from "../src/lib/expData";
+import { hydrateExpTable, cumulativeSeries, EXP_TABLE } from "../src/lib/expData";
 import { computePeriodGains } from "../src/lib/expStats";
 
 const CONCURRENCY = 12;
@@ -22,14 +22,29 @@ const CONCURRENCY = 12;
 async function main() {
   await hydrateExpTable(true); // load the freshly-seeded live table
 
-  // 1. Every snapshot's expPct, from the live per-level requirement.
-  const r1 = await prisma.$executeRawUnsafe(`
+  // 1. Every snapshot's expPct, per-reading (old vs new curve). A reading whose
+  //    within-level exp exceeds the current requirement predates the reduction,
+  //    so it uses the OLD static requirement; the rest use the new one.
+  // 1a. New-curve readings (exp <= current requirement).
+  const r1a = await prisma.$executeRawUnsafe(`
     UPDATE "ExpSnapshot" s
     SET "expPct" = LEAST(100, s."exp"::float8 / r."totalExp"::float8 * 100)
     FROM "ExpLevelReq" r
-    WHERE s."level" = r."level" AND r."totalExp" > 0
+    WHERE s."level" = r."level" AND r."totalExp" > 0 AND s."exp" <= r."totalExp"
   `);
-  console.log(`[backfill] snapshot.expPct updated: ${r1}`);
+  // 1b. Old-curve readings (exp > current requirement) -> old static requirement.
+  const reqs = await prisma.expLevelReq.findMany({ select: { level: true, totalExp: true } });
+  let r1b = 0;
+  for (const { level, totalExp } of reqs) {
+    const oldReq = EXP_TABLE[level];
+    if (!oldReq) continue;
+    r1b += await prisma.$executeRawUnsafe(
+      `UPDATE "ExpSnapshot" SET "expPct" = LEAST(100, "exp"::float8 / $1::float8 * 100)
+       WHERE "level" = $2 AND "exp" > $3`,
+      oldReq, level, Number(totalExp)
+    );
+  }
+  console.log(`[backfill] snapshot.expPct updated: new-era=${r1a} old-era=${r1b}`);
 
   // 2. ExpCharacter.expPct from each character's latest snapshot.
   const r2 = await prisma.$executeRawUnsafe(`
@@ -46,7 +61,13 @@ async function main() {
   // 3. Per-character: fix cross-level snapshot.gain + denormalized period gains.
   const chars = await prisma.expCharacter.findMany({ select: { id: true } });
   console.log(`[backfill] recomputing gains for ${chars.length} characters...`);
-  const now = new Date();
+  // Anchor period boundaries to the latest snapshot, not wall-clock: the daily
+  // crawler computes gains at crawl time (same day as the snapshot), so a
+  // backfill run on a later date must simulate that or every "since today's
+  // reset" gain collapses to 0 (baseline == latest).
+  const latestSnap = await prisma.expSnapshot.aggregate({ _max: { snappedAt: true } });
+  const now = latestSnap._max.snappedAt ?? new Date();
+  console.log(`[backfill] anchoring period gains to latest snapshot: ${now.toISOString()}`);
   const queue = [...chars];
   let done = 0, gainRowsFixed = 0;
 
@@ -60,17 +81,13 @@ async function main() {
         select: { id: true, level: true, exp: true, gain: true, snappedAt: true },
       });
 
-      // Recompute each snapshot's gain; write only the ones that changed.
+      // Recompute each snapshot's gain (era-aware); write only changed rows.
+      const cum = cumulativeSeries(snaps.map((s) => ({ level: s.level, exp: Number(s.exp) })));
       for (let i = 0; i < snaps.length; i++) {
-        const cur = snaps[i];
-        const newGain =
-          i === 0
-            ? null
-            : Math.max(0, Math.round(cumulativeExp(cur.level, Number(cur.exp)) -
-                cumulativeExp(snaps[i - 1].level, Number(snaps[i - 1].exp))));
+        const newGain = i === 0 ? null : Math.max(0, Math.round(cum[i] - cum[i - 1]));
         const newVal = newGain != null ? BigInt(newGain) : null;
-        if (newVal !== cur.gain) {
-          await prisma.expSnapshot.update({ where: { id: cur.id }, data: { gain: newVal } });
+        if (newVal !== snaps[i].gain) {
+          await prisma.expSnapshot.update({ where: { id: snaps[i].id }, data: { gain: newVal } });
           gainRowsFixed++;
         }
       }

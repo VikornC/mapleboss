@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { formatNumber } from "@/lib/format";
-import { cumulativeExp, expToNextFor, hydrateExpTable } from "@/lib/expData";
+import { cumulativeSeries, expToNextFor, hydrateExpTable } from "@/lib/expData";
 
 // A minimal snapshot shape for gain math (level + within-level exp + time).
 export interface SnapshotLike {
@@ -25,16 +25,14 @@ export function jstResetBoundaries(now: Date = new Date()) {
 // Snapshots must be ascending by snappedAt. Returns null if there's no baseline.
 function gainSince(snapshots: SnapshotLike[], boundary: Date): number | null {
   if (snapshots.length === 0) return null;
-  const latest = snapshots[snapshots.length - 1];
-  let baseline: SnapshotLike | null = null;
-  for (const s of snapshots) {
-    if (s.snappedAt.getTime() <= boundary.getTime()) baseline = s;
+  let baselineIdx = -1;
+  for (let i = 0; i < snapshots.length; i++) {
+    if (snapshots[i].snappedAt.getTime() <= boundary.getTime()) baselineIdx = i;
     else break;
   }
-  if (!baseline) return null;
-  const g =
-    cumulativeExp(latest.level, Number(latest.exp)) -
-    cumulativeExp(baseline.level, Number(baseline.exp));
+  if (baselineIdx < 0) return null;
+  const cum = cumulativeSeries(snapshots.map((s) => ({ level: s.level, exp: Number(s.exp) })));
+  const g = cum[cum.length - 1] - cum[baselineIdx];
   return Math.max(0, Math.round(g));
 }
 
@@ -150,15 +148,13 @@ function computeDailyGains(snapshots: Awaited<ReturnType<typeof getSnapshots>>):
   if (snapshots.length < 2) return [];
 
   const daily: Record<string, number> = {};
+  const cum = cumulativeSeries(snapshots.map((s) => ({ level: s.level, exp: Number(s.exp) })));
 
   for (let i = 1; i < snapshots.length; i++) {
-    const prev = snapshots[i - 1];
-    const curr = snapshots[i];
-    const date = curr.snappedAt.toISOString().slice(0, 10);
+    const date = snapshots[i].snappedAt.toISOString().slice(0, 10);
 
-    // Exact, level-up-safe: difference of cumulative totals.
-    const gained =
-      cumulativeExp(curr.level, Number(curr.exp)) - cumulativeExp(prev.level, Number(prev.exp));
+    // Exact, level-up-safe, reduction-safe: difference of cumulative totals.
+    const gained = cum[i] - cum[i - 1];
 
     if (gained > 0) {
       daily[date] = (daily[date] ?? 0) + gained;
