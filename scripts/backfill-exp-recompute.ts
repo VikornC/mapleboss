@@ -14,7 +14,7 @@
  * Run: npx tsx scripts/backfill-exp-recompute.ts
  */
 import { prisma } from "../src/lib/db";
-import { hydrateExpTable, cumulativeSeries, EXP_TABLE } from "../src/lib/expData";
+import { hydrateExpTable, gainBetween, EXP_TABLE } from "../src/lib/expData";
 import { computePeriodGains } from "../src/lib/expStats";
 
 const CONCURRENCY = 12;
@@ -81,10 +81,15 @@ async function main() {
         select: { id: true, level: true, exp: true, gain: true, snappedAt: true },
       });
 
-      // Recompute each snapshot's gain (era-aware); write only changed rows.
-      const cum = cumulativeSeries(snaps.map((s) => ({ level: s.level, exp: Number(s.exp) })));
+      // Recompute each snapshot's gain (per-step, reduction-safe); write changed.
       for (let i = 0; i < snaps.length; i++) {
-        const newGain = i === 0 ? null : Math.max(0, Math.round(cum[i] - cum[i - 1]));
+        const newGain =
+          i === 0
+            ? null
+            : Math.round(gainBetween(
+                { level: snaps[i - 1].level, exp: Number(snaps[i - 1].exp) },
+                { level: snaps[i].level, exp: Number(snaps[i].exp) }
+              ));
         const newVal = newGain != null ? BigInt(newGain) : null;
         if (newVal !== snaps[i].gain) {
           await prisma.expSnapshot.update({ where: { id: snaps[i].id }, data: { gain: newVal } });

@@ -66,17 +66,6 @@ export const MAX_LEVEL = 275;
 // they don't, they transparently fall back to the static seed.
 let ACTIVE: Record<number, number> = { ...EXP_TABLE };
 
-function buildPrefix(table: Record<number, number>): number[] {
-  const p: number[] = [0, 0]; // index 0 unused, level 1 = 0
-  let acc = 0;
-  for (let l = 1; l <= MAX_LEVEL; l++) {
-    acc += table[l] ?? 0;
-    p[l + 1] = acc;
-  }
-  return p;
-}
-let ACTIVE_PREFIX: number[] = buildPrefix(ACTIVE);
-
 // Cache the DB overlay for a short TTL so warm serverless instances issue at
 // most one small query per window. The crawler and scripts get a fresh read
 // each process start (module state is per-process).
@@ -95,7 +84,6 @@ export async function hydrateExpTable(force = false): Promise<void> {
         const next: Record<number, number> = { ...EXP_TABLE };
         for (const r of rows) next[r.level] = Number(r.totalExp);
         ACTIVE = next;
-        ACTIVE_PREFIX = buildPrefix(next);
       }
       lastHydrated = Date.now();
     } finally {
@@ -120,40 +108,33 @@ export function expToNextFor(level: number, withinLevelExp?: number): number {
   return cur;
 }
 
-// Prefix sums of the OLD (static) curve, for pre-reduction readings. Static, so
-// built once. ACTIVE_PREFIX is the current (post-reduction) curve.
-const OLD_PREFIX: number[] = buildPrefix(EXP_TABLE);
-
 /**
- * Cumulative EXP per snapshot for a chronological series, gains-safe across a
- * reduction. MSU rolls reductions out per character, so a character's series has
- * an old-curve prefix (before it transitions) and a new-curve prefix (after).
- * A reading with within-level EXP above the current requirement is definitively
- * old-curve; the last such index marks the transition, so everything up to it
- * uses the old prefix and everything after uses the new one. Within-era gains
- * are exact; only the single transition step is cross-era (its diff is clamped
- * to 0 by callers, since the two curves aren't a common scale).
+ * EXP earned between two consecutive readings of one character, correct across a
+ * reduction. Prefix sums can't be used: an EXP reduction lowers every level's
+ * requirement, so cumulative totals aren't a common scale before/after it.
+ * Instead we work locally:
+ *   - same level  -> within-level delta (requirement-independent);
+ *   - level-up    -> finish the departing level (using THAT reading's era — a
+ *                    within-level EXP above the new requirement is still on the
+ *                    old curve) + any full intermediate levels + the new
+ *                    within-level EXP.
+ * A normal level-up produces a low new reading, so the departing reading's own
+ * value (not the new one) is what tells us which curve the completed level was on.
  */
-export function cumulativeSeries(series: { level: number; exp: number }[]): number[] {
-  let lastOld = -1;
-  for (let i = 0; i < series.length; i++) {
-    const nr = ACTIVE[series[i].level] ?? 0;
-    if (nr > 0 && series[i].exp > nr) lastOld = i;
-  }
-  return series.map((s, i) => {
-    const old = i <= lastOld;
-    const prefix = old ? OLD_PREFIX : ACTIVE_PREFIX;
-    const req = (old ? EXP_TABLE[s.level] : ACTIVE[s.level]) ?? 0;
-    const base = prefix[s.level] ?? prefix[MAX_LEVEL] ?? 0;
-    return base + (req > 0 ? Math.min(s.exp, req) : s.exp);
-  });
+function reqForReading(level: number, within: number): number {
+  const cur = ACTIVE[level] ?? 0;
+  if (cur > 0 && within > cur) return EXP_TABLE[level] ?? cur; // old-curve reading
+  return cur;
 }
-
-/** Single-reading cumulative EXP on the current curve (capped at the level req). */
-export function cumulativeExp(level: number, withinLevelExp: number): number {
-  const base = ACTIVE_PREFIX[level] ?? ACTIVE_PREFIX[MAX_LEVEL] ?? 0;
-  const req = ACTIVE[level] ?? 0;
-  return base + (req > 0 ? Math.min(withinLevelExp, req) : withinLevelExp);
+export function gainBetween(
+  prev: { level: number; exp: number },
+  now: { level: number; exp: number }
+): number {
+  if (now.level <= prev.level) return Math.max(0, now.exp - prev.exp);
+  let g = reqForReading(prev.level, prev.exp) - prev.exp; // finish the departing level
+  for (let l = prev.level + 1; l < now.level; l++) g += ACTIVE[l] ?? EXP_TABLE[l] ?? 0;
+  g += now.exp;
+  return Math.max(0, g);
 }
 
 export function calcExpNeeded(currentLevel: number, currentPct: number, targetLevel: number): number {

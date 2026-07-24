@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { cumulativeSeries, expToNextFor, hydrateExpTable } from "@/lib/expData";
+import { gainBetween, expToNextFor, hydrateExpTable } from "@/lib/expData";
 import { computePeriodGains } from "@/lib/expStats";
 import { sweepTopRanks } from "@/lib/rankingApi";
 import { fetchNavigatorInfo } from "@/lib/navigatorApi";
@@ -114,15 +114,11 @@ export async function ingestSweep(
       where: { characterId: character.id },
       orderBy: { snappedAt: "desc" },
     });
-    // Era-aware gain (handles the per-character reduction transition).
-    let gain: number | null = null;
-    if (prev != null) {
-      const c = cumulativeSeries([
-        { level: prev.level, exp: Number(prev.exp) },
-        { level: row.level, exp: row.exp },
-      ]);
-      gain = Math.max(0, Math.round(c[1] - c[0]));
-    }
+    // Per-step gain (level-up-safe and reduction-safe).
+    const gain =
+      prev != null
+        ? Math.round(gainBetween({ level: prev.level, exp: Number(prev.exp) }, { level: row.level, exp: row.exp }))
+        : null;
 
     await prisma.expSnapshot.create({
       data: {

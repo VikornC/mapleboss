@@ -13,7 +13,7 @@
  */
 import { readFileSync } from "fs";
 import { prisma } from "../src/lib/db";
-import { EXP_TABLE, cumulativeExp } from "../src/lib/expData";
+import { EXP_TABLE, gainBetween } from "../src/lib/expData";
 
 const URL = "https://lulumi-tools.com/data/rankings.json";
 
@@ -81,12 +81,11 @@ async function main() {
     // Build snapshot rows from history (ascending), deriving exp + per-day gain.
     const rows: { characterId: number; level: number; exp: bigint; expPct: number; gain: bigint | null; snappedAt: Date }[] = [];
     const hist = [...c.history].sort((a, b) => a.snapshotDate.localeCompare(b.snapshotDate));
-    let prevCum: number | null = null;
+    let prev: { level: number; exp: number } | null = null;
     for (const h of hist) {
       const exp = expFromPct(h.level, h.levelExpPercent);
-      const cum = cumulativeExp(h.level, exp);
-      const gain = prevCum != null ? Math.max(0, Math.round(cum - prevCum)) : null;
-      prevCum = cum;
+      const gain = prev != null ? Math.round(gainBetween(prev, { level: h.level, exp })) : null;
+      prev = { level: h.level, exp };
       if (haveDays.has(h.snapshotDate)) { skipped++; continue; }
       rows.push({
         characterId: character.id,

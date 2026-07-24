@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { formatNumber } from "@/lib/format";
-import { cumulativeSeries, expToNextFor, hydrateExpTable } from "@/lib/expData";
+import { gainBetween, expToNextFor, hydrateExpTable } from "@/lib/expData";
 
 // A minimal snapshot shape for gain math (level + within-level exp + time).
 export interface SnapshotLike {
@@ -31,9 +31,15 @@ function gainSince(snapshots: SnapshotLike[], boundary: Date): number | null {
     else break;
   }
   if (baselineIdx < 0) return null;
-  const cum = cumulativeSeries(snapshots.map((s) => ({ level: s.level, exp: Number(s.exp) })));
-  const g = cum[cum.length - 1] - cum[baselineIdx];
-  return Math.max(0, Math.round(g));
+  // Sum per-step gains from the baseline to the latest (reduction-safe).
+  let g = 0;
+  for (let i = baselineIdx + 1; i < snapshots.length; i++) {
+    g += gainBetween(
+      { level: snapshots[i - 1].level, exp: Number(snapshots[i - 1].exp) },
+      { level: snapshots[i].level, exp: Number(snapshots[i].exp) }
+    );
+  }
+  return Math.round(g);
 }
 
 // Daily/weekly/monthly gains aligned to the JST resets (mirrors lulumi).
@@ -148,13 +154,15 @@ function computeDailyGains(snapshots: Awaited<ReturnType<typeof getSnapshots>>):
   if (snapshots.length < 2) return [];
 
   const daily: Record<string, number> = {};
-  const cum = cumulativeSeries(snapshots.map((s) => ({ level: s.level, exp: Number(s.exp) })));
 
   for (let i = 1; i < snapshots.length; i++) {
     const date = snapshots[i].snappedAt.toISOString().slice(0, 10);
 
-    // Exact, level-up-safe, reduction-safe: difference of cumulative totals.
-    const gained = cum[i] - cum[i - 1];
+    // Per-step, level-up-safe and reduction-safe.
+    const gained = gainBetween(
+      { level: snapshots[i - 1].level, exp: Number(snapshots[i - 1].exp) },
+      { level: snapshots[i].level, exp: Number(snapshots[i].exp) }
+    );
 
     if (gained > 0) {
       daily[date] = (daily[date] ?? 0) + gained;
